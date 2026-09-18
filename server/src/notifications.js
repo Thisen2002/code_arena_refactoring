@@ -50,8 +50,8 @@ export function notificationsRouter({ requireAuth, requireDatabase } = {}) {
         })),
         unreadCount,
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ error: 'Unable to load notifications. Please try again.' });
     }
   });
 
@@ -71,8 +71,8 @@ export function notificationsRouter({ requireAuth, requireDatabase } = {}) {
       if (!updated) return res.status(404).json({ error: 'Notification not found.' });
 
       res.json({ success: true, notification: updated });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ error: 'Unable to update notification. Please try again.' });
     }
   });
 
@@ -84,8 +84,8 @@ export function notificationsRouter({ requireAuth, requireDatabase } = {}) {
         { $set: { read: true } }
       );
       res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ error: 'Unable to mark notifications as read. Please try again.' });
     }
   });
 
@@ -110,8 +110,8 @@ export function notificationsRouter({ requireAuth, requireDatabase } = {}) {
           district: w.district,
         })),
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ error: 'Unable to load location settings. Please try again.' });
     }
   });
 
@@ -159,8 +159,8 @@ export function notificationsRouter({ requireAuth, requireDatabase } = {}) {
           ? 'Saved monitored location. You will receive in-app alerts when emergencies affect this area.'
           : 'Saved location preferences updated.',
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ error: 'Unable to save location preferences. Please try again.' });
     }
   });
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { request } from './api.js';
 
-export default function Crew() {
+export default function Crew({ lang = 'en', t = {} }) {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,7 +65,7 @@ export default function Crew() {
       }
       if (!res.ok) throw new Error(data.error || 'Failed to close incident.');
 
-      setActionMessage('Incident resolved and closed successfully. Public map and citizen statuses updated.');
+      setActionMessage(lang === 'si' ? 'සිද්ධිය සාර්ථකව වසා දමා ඇත. රාජ්‍ය සිතියම සහ පුරවැසි තත්ත්ව යාවත්කාලීන කළා.' : 'Incident resolved and closed successfully. Public map and citizen statuses updated.');
       setActiveClosureId(null);
       setFile(null);
       setPreviewUrl('');
@@ -86,11 +86,11 @@ export default function Crew() {
     <section className="panel mt-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="eyebrow">FIELD CREW OPERATIONS</div>
-          <h2>Field Work Orders</h2>
-          <p className="muted text-sm">Real-time task queue · physical photo verification required for closure</p>
+          <div className="eyebrow">{lang === 'si' ? 'ක්ෂේත්‍ර කණ්ඩායම් මෙහෙයුම්' : 'FIELD CREW OPERATIONS'}</div>
+          <h2>{lang === 'si' ? 'ක්ෂේත්‍ර රාජකාරි නියෝග' : 'Field Work Orders'}</h2>
+          <p className="muted text-sm">{lang === 'si' ? 'තත්‍ය කාලීන කාර්ය පෝලිය · වසා දැමීමට භෞතික ඡායාරූප අනිවාර්යයි' : 'Real-time task queue · physical photo verification required for closure'}</p>
         </div>
-        <button className="secondary" onClick={loadAssigned} disabled={loading}>Refresh Tasks</button>
+        <button className="secondary" onClick={loadAssigned} disabled={loading}>{lang === 'si' ? 'නවීකරණය කරන්න' : 'Refresh Tasks'}</button>
       </div>
 
       {/* Category Tabs */}
@@ -107,7 +107,7 @@ export default function Crew() {
           }`}
         >
           <span>🚨</span>
-          <span>Active Dispatches</span>
+          <span>{lang === 'si' ? 'සක්‍රීය යෙදවීම්' : 'Active Dispatches'}</span>
           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${crewTab === 'active' ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 text-slate-700'}`}>
             {activeJobs.length}
           </span>
@@ -124,7 +124,7 @@ export default function Crew() {
           }`}
         >
           <span>✅</span>
-          <span>Resolved & Reopened History</span>
+          <span>{lang === 'si' ? 'නිරාකරණය කළ ඉතිහාසය' : 'Resolved & Reopened History'}</span>
           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${crewTab === 'closed' ? 'bg-emerald-400 text-slate-950' : 'bg-slate-200 text-slate-700'}`}>
             {closedJobs.length}
           </span>
@@ -144,18 +144,18 @@ export default function Crew() {
       )}
 
       {loading && !incidents.length ? (
-        <p role="status" className="py-8">Loading assigned field tasks…</p>
+        <p role="status" className="py-8">{lang === 'si' ? 'පවරා ඇති ක්ෂේත්‍ර කාර්ය පූරණය වෙමින්…' : 'Loading assigned field tasks…'}</p>
       ) : (
         <div className="space-y-6 mt-6">
           {crewTab === 'active' && (
             <div>
             <h3 className="text-base font-bold text-slate-800 mb-3">
-              Active Dispatches ({activeJobs.length})
+              {lang === 'si' ? `සක්‍රීය යෙදවීම් (${activeJobs.length})` : `Active Dispatches (${activeJobs.length})`}
             </h3>
             {!activeJobs.length ? (
               <div className="empty">
-                <h4>No active tasks assigned to your crew unit</h4>
-                <p className="muted">Tasks will appear here when an Operations officer dispatches your unit.</p>
+                <h4>{lang === 'si' ? 'ඔබගේ ක්ෂේත්‍ර ඒකකයට සක්‍රීය කාර්යයන් නොමැත' : 'No active tasks assigned to your crew unit'}</h4>
+                <p className="muted">{lang === 'si' ? 'මෙහෙයුම් නිලධාරියෙකු ඔබේ ඒකකය යෙදවූ විට කාර්යයන් මෙහි දිස්වේ.' : 'Tasks will appear here when an Operations officer dispatches your unit.'}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -169,29 +169,29 @@ export default function Crew() {
                         <span className="font-bold text-slate-900">{job.title}</span>
                       </div>
                       <span className="text-xs text-slate-500">
-                        Dispatched {new Date(job.dispatch?.dispatchedAt || job.createdAt).toLocaleTimeString()}
+                        {lang === 'si' ? 'යෙදවූ වේලාව: ' : 'Dispatched '}{new Date(job.dispatch?.dispatchedAt || job.createdAt).toLocaleTimeString()}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                       <div className="space-y-1">
-                        <div><strong className="text-slate-700">Location:</strong> {job.ward?.name} · {job.road?.name}</div>
-                        <div><strong className="text-slate-700">Coordinates:</strong> {job.center.latitude}, {job.center.longitude}</div>
-                        <div><strong className="text-slate-700">Hazard & Severity:</strong> {job.hazardType} · {job.severity}</div>
-                        <div><strong className="text-slate-700">Road Status:</strong> {job.isRoadClosed ? 'Closed to Traffic' : 'Passable'}</div>
+                        <div><strong className="text-slate-700">{lang === 'si' ? 'ස්ථානය:' : 'Location:'}</strong> {job.ward?.name} · {job.road?.name}</div>
+                        <div><strong className="text-slate-700">{lang === 'si' ? 'ඛණ්ඩාංක:' : 'Coordinates:'}</strong> {job.center.latitude}, {job.center.longitude}</div>
+                        <div><strong className="text-slate-700">{lang === 'si' ? 'ආපදා වර්ගය සහ බරපතළකම:' : 'Hazard & Severity:'}</strong> {job.hazardType} · {job.severity}</div>
+                        <div><strong className="text-slate-700">{lang === 'si' ? 'මාර්ග තත්ත්වය:' : 'Road Status:'}</strong> {job.isRoadClosed ? (lang === 'si' ? 'ගමනාගමනයට වසා ඇත' : 'Closed to Traffic') : (lang === 'si' ? 'ගමන් කළ හැකිය' : 'Passable')}</div>
                       </div>
                       <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="block text-slate-700 mb-1">Officer Instructions:</strong>
-                        <p className="text-slate-800">{job.dispatch?.instructions || 'Inspect area, clear hazards, and verify public safety.'}</p>
+                        <strong className="block text-slate-700 mb-1">{lang === 'si' ? 'නිලධාරී උපදෙස්:' : 'Officer Instructions:'}</strong>
+                        <p className="text-slate-800">{job.dispatch?.instructions || (lang === 'si' ? 'ප්‍රදේශය පරීක්ෂා කර ආපදා ඉවත් කර ජනතාවගේ ආරක්ෂාව තහවුරු කරන්න.' : 'Inspect area, clear hazards, and verify public safety.')}</p>
                       </div>
                     </div>
 
                     {activeClosureId === job._id ? (
                       <div className="p-4 bg-slate-50 border border-slate-300 rounded-lg space-y-3 mt-3">
-                        <h4 className="text-sm font-bold text-slate-900">Resolve & Close Incident</h4>
+                        <h4 className="text-sm font-bold text-slate-900">{lang === 'si' ? 'සිද්ධිය නිරාකරණය කර වසා දමන්න' : 'Resolve & Close Incident'}</h4>
                         <div>
                           <label htmlFor={`closure-photo-${job._id}`} className="block text-xs font-semibold text-slate-700 mb-1">
-                            Completion Photo (Mandatory verification photo)
+                            {lang === 'si' ? 'සම්පූර්ණ කිරීමේ ඡායාරූපය (අනිවාර්ය)' : 'Completion Photo (Mandatory verification photo)'}
                           </label>
                           <input
                             id={`closure-photo-${job._id}`}
@@ -210,14 +210,14 @@ export default function Crew() {
 
                         <div>
                           <label htmlFor={`closure-notes-${job._id}`} className="block text-xs font-semibold text-slate-700 mb-1">
-                            Resolution Notes
+                            {lang === 'si' ? 'නිරාකරණ සටහන්' : 'Resolution Notes'}
                           </label>
                           <textarea
                             id={`closure-notes-${job._id}`}
                             rows="2"
                             value={notes}
                             onChange={e => setNotes(e.target.value)}
-                            placeholder="Describe actions taken (e.g., culvert cleared, road dry and reopened)..."
+                            placeholder={lang === 'si' ? 'ගත් පියවර විස්තර කරන්න (නිදසුන: ජලාපවහනය ඉවත් කළා, මාර්ගය නැවත විවෘත කළා)...' : 'Describe actions taken (e.g., culvert cleared, road dry and reopened)...'}
                             className="w-full text-xs p-2 border rounded"
                           />
                         </div>
@@ -228,13 +228,13 @@ export default function Crew() {
                             disabled={submitting}
                             onClick={() => handleCloseIncident(job._id)}
                           >
-                            {submitting ? 'Submitting Closure…' : 'Submit & Re-open Road'}
+                             {submitting ? (lang === 'si' ? 'ඉදිරිපත් කරමින්…' : 'Submitting Closure…') : (lang === 'si' ? 'ඉදිරිපත් කර මාර්ගය නැවත විවෘත කරන්න' : 'Submit & Re-open Road')}
                           </button>
                           <button
                             className="secondary text-xs"
                             onClick={() => { setActiveClosureId(null); setFile(null); setPreviewUrl(''); }}
                           >
-                            Cancel
+                            {lang === 'si' ? 'අවලංගු කරන්න' : 'Cancel'}
                           </button>
                         </div>
                       </div>
@@ -244,7 +244,7 @@ export default function Crew() {
                           className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold"
                           onClick={() => { setActiveClosureId(job._id); setNotes(''); setFile(null); setPreviewUrl(''); }}
                         >
-                          Complete Job & Upload Photo
+                          {lang === 'si' ? 'කාර්යය සම්පූර්ණ කර ඡායාරූපය යොමු කරන්න' : 'Complete Job & Upload Photo'}
                         </button>
                       </div>
                     )}
@@ -257,11 +257,11 @@ export default function Crew() {
 
           {crewTab === 'closed' && (
             <div>
-              <h3 className="text-base font-bold text-slate-800 mb-3">Recently Closed Jobs ({closedJobs.length})</h3>
+              <h3 className="text-base font-bold text-slate-800 mb-3">{lang === 'si' ? `මෑතකදී වසා දැමූ කාර්යයන් (${closedJobs.length})` : `Recently Closed Jobs (${closedJobs.length})`}</h3>
               {!closedJobs.length ? (
                 <div className="empty text-center py-8">
-                  <h4 className="text-sm font-semibold text-slate-700">No closed jobs yet</h4>
-                  <p className="muted text-xs">Completed tasks with mandatory closure photos will appear in this audit list.</p>
+                  <h4 className="text-sm font-semibold text-slate-700">{lang === 'si' ? 'තවම වසා දැමූ කාර්යයන් නොමැත' : 'No closed jobs yet'}</h4>
+                  <p className="muted text-xs">{lang === 'si' ? 'අනිවාර්ය ඡායාරූප සහිත සම්පූර්ණ කළ කාර්යයන් මෙහි දිස්වේ.' : 'Completed tasks with mandatory closure photos will appear in this audit list.'}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -274,7 +274,7 @@ export default function Crew() {
                       </div>
                       {job.closure?.photo?.url && (
                         <a href={job.closure.photo.url} target="_blank" rel="noreferrer" className="text-blue-600 underline font-semibold">
-                          View Verification Photo →
+                          {lang === 'si' ? 'සත්‍යාපන ඡායාරූපය බලන්න →' : 'View Verification Photo →'}
                         </a>
                       )}
                     </div>

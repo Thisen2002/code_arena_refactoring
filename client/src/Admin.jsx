@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { request } from './api.js';
 import ReportQueue from './ReportQueue.jsx';
 
-export default function Admin({ lang = 'en', t = {} }) {
+export default function Admin({ lang = 'en', t = {}, user = null }) {
   const [activeTab, setActiveTab] = useState('config'); // 'config' | 'feedback' | 'audit'
   const [configData, setConfigData] = useState(null);
   const [feedbackData, setFeedbackData] = useState(null);
@@ -490,7 +490,7 @@ export default function Admin({ lang = 'en', t = {} }) {
               Admin Role Required
             </span>
           </div>
-          <ReportQueue title={lang === 'si' ? "සියලු ආපදා සහ උපකාර වාර්තා" : "All Incident & Hazard Reports"} user={{ role: 'admin' }} lang={lang} t={t} />
+          <ReportQueue title={lang === 'si' ? "සියලු ආපදා සහ උපකාර වාර්තා" : "All Incident & Hazard Reports"} user={user} lang={lang} t={t} />
         </div>
       )}
     </div>

@@ -260,7 +260,7 @@ function App() {
     if (view === 'Operations' && ['officer', 'admin'].includes(user.role)) return <ReportQueue title={t.operationsNav || "Report inbox"} user={user} lang={lang} t={t} />;
     if (view === 'Crew' && ['crew', 'admin'].includes(user.role)) return <Crew lang={lang} t={t} />;
     if (view === 'Relief' && ['relief', 'officer', 'admin'].includes(user.role)) return <Relief lang={lang} t={t} />;
-    if (view === 'Admin' && user.role === 'admin') return <Admin lang={lang} t={t} />;
+    if (view === 'Admin' && user.role === 'admin') return <Admin lang={lang} t={t} user={user} />;
     return (
       <section className="panel">
         <span className="badge">Access restricted</span>

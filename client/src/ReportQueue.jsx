@@ -60,9 +60,9 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
   return <section className="panel mt-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <div className="eyebrow">{own ? 'YOUR SUBMISSIONS' : 'OPERATIONS'}</div>
+        <div className="eyebrow">{own ? (lang === 'si' ? 'මගේ යලක කිරීම්' : 'YOUR SUBMISSIONS') : (lang === 'si' ? 'මෙහෙයුම්' : 'OPERATIONS')}</div>
         <h2>{title}</h2>
-        <p className="muted text-sm">{own ? 'Track your reported hazards, requests, and emergency resolution progress' : 'Newest first · auto-refreshes · 5-check AI & rule verification pipeline'}</p>
+        <p className="muted text-sm">{own ? (lang === 'si' ? 'ඔබගේ ආපදා, ඉල්ලීම් සහ වහ්දත් අනුගමනය කරන්න' : 'Track your reported hazards, requests, and emergency resolution progress') : (lang === 'si' ? 'නවතම පසුවණ · ස්වයංක්‍රියව යාවත්කාල් · 5-පරීක්ෂා AI සහ නියම ඈකීහඬන ප්‍රනාලිය' : 'Newest first · auto-refreshes · 5-check AI & rule verification pipeline')}</p>
       </div>
       <div className="flex items-center gap-2">
         {!own && state.reports.length > 0 && (

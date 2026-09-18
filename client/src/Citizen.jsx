@@ -362,7 +362,9 @@ export default function Citizen({
   const rainfallMm = feedStatus?.weather?.['weather-kolonnawa-basin']?.rainfall3hMm || 92;
   const rawRiverLevel = feedStatus?.gauges?.['gauge-nagalagam']?.levelFeet;
   const riverLevelMeters = rawRiverLevel ? (rawRiverLevel * 0.3048).toFixed(1) : '4.8';
-  const weatherCondition = feedStatus?.weather?.['weather-colombo-central']?.condition === 'heavy_rain' ? 'Heavy Rain' : 'Heavy Rain';
+  const weatherConditionMap = { heavy_rain: lang === 'si' ? 'අධික වර්ෂාව' : 'Heavy Rain', light_rain: lang === 'si' ? 'සැහැල්ලු වර්ෂාව' : 'Light Rain', normal: lang === 'si' ? 'සාමාන්‍ය' : 'Normal', overcast: lang === 'si' ? 'වලාකුළු' : 'Overcast' };
+  const rawCondition = feedStatus?.weather?.['weather-colombo-central']?.condition;
+  const weatherCondition = weatherConditionMap[rawCondition] || (lang === 'si' ? 'අධික වර්ෂාව' : 'Heavy Rain');
   const displayWardName = savedLoc.wardName ? savedLoc.wardName.split('/')[0].trim() : 'Grandpass';
 
   return (
@@ -633,7 +635,7 @@ export default function Citizen({
                           {a.title}
                         </span>
                         <span className="text-[11px] text-slate-400 mt-0.5 block">
-                          {idx === 0 ? '15 minutes ago' : idx === 1 ? '32 minutes ago' : '1 hour ago'}
+                          {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                     </div>
@@ -699,9 +701,9 @@ export default function Citizen({
               <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="badge bg-amber-200 text-amber-900 border-amber-400 font-bold text-xs">
-                    OFFICIAL INQUIRY
+                    {t.officialInquiryBadge || 'OFFICIAL INQUIRY'}
                   </span>
-                  <h4 className="font-bold text-sm text-amber-950">Field Responders Need Your Ground Input</h4>
+                  <h4 className="font-bold text-sm text-amber-950">{t.fieldRespondersNeedInput || 'Field Responders Need Your Ground Input'}</h4>
                 </div>
                 {clarifications.map(c => (
                   <div key={c._id} className="p-3 bg-white border border-amber-200 rounded-lg space-y-2 text-xs">
@@ -726,10 +728,10 @@ export default function Citizen({
                           }
                         >
                           {opt === 'confirmed_hazard'
-                            ? 'Hazard Present'
+                            ? (t.hazardPresentBtn || 'Water/Hazard Present')
                             : opt === 'hazard_cleared'
-                              ? 'Hazard Cleared'
-                              : 'Not Sure'}
+                              ? (t.hazardClearedBtn || 'Water Receded / Cleared')
+                              : (t.notSureBtn || 'Not Sure')}
                         </button>
                       ))}
                     </div>
@@ -926,7 +928,7 @@ export default function Citizen({
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
               <div>
                 <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                  <span>In-App Location Alerts Feed</span>
+                  <span>{lang === 'si' ? 'යෙදුම් තුළ ස්ථාන අනතුරු ඇඟවීම් ආහාරය' : 'In-App Location Alerts Feed'}</span>
                   {unreadCount > 0 && (
                     <span className="bg-[#e11d48] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
                       {unreadCount} Unread
@@ -1103,7 +1105,7 @@ export default function Citizen({
               {t.backToDashboard || '← Back to Dashboard'}
             </button>
           </div>
-          <ReportQueue own title="My Reported Hazards & Requests" refreshKey={refresh} />
+          <ReportQueue own title={lang === 'si' ? 'මගේ ආපදා සහ ආධාර ඉල්ලීම්' : 'My Reported Hazards & Requests'} refreshKey={refresh} lang={lang} t={t} />
         </div>
       )}
 
@@ -1123,7 +1125,7 @@ export default function Citizen({
                 onClick={() => setActiveCategory('home')}
                 className="secondary text-xs"
               >
-                ← Back to Dashboard
+                {t.backToDashboard || '← Back to Dashboard'}
               </button>
             </div>
 
@@ -1131,13 +1133,13 @@ export default function Citizen({
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <div className="flex items-center gap-2">
                   <input
-                    id="opt-in-alerts"
+                    id="settings-opt-in-alerts"
                     type="checkbox"
                     checked={savedLoc.optInAlerts}
                     onChange={e => setSavedLoc(prev => ({ ...prev, optInAlerts: e.target.checked }))}
                     className="rounded text-emerald-700 h-4 w-4"
                   />
-                  <label htmlFor="opt-in-alerts" className="font-bold text-slate-900 cursor-pointer">
+                  <label htmlFor="settings-opt-in-alerts" className="font-bold text-slate-900 cursor-pointer">
                     {t.receiveProactiveAlerts || 'Receive Proactive Alerts for My Monitored Area'}
                   </label>
                 </div>
@@ -1145,11 +1147,11 @@ export default function Citizen({
                 {savedLoc.optInAlerts && (
                   <div className="space-y-3 pt-2 border-t border-slate-200">
                     <div>
-                      <label htmlFor="saved-ward" className="block font-semibold text-slate-700 mb-1">
+                      <label htmlFor="settings-saved-ward" className="block font-semibold text-slate-700 mb-1">
                         {t.primaryMonitoredWard || 'Primary Monitored Ward'}
                       </label>
                       <select
-                        id="saved-ward"
+                        id="settings-saved-ward"
                         value={savedLoc.wardId || ''}
                         onChange={e => {
                           const wId = e.target.value;
@@ -1175,14 +1177,14 @@ export default function Citizen({
                     <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
                       <div className="flex items-center gap-2">
                         <input
-                          id="channel-email-toggle"
+                          id="settings-channel-email-toggle"
                           type="checkbox"
                           checked={Boolean(savedLoc.channelEmail)}
                           onChange={e => setSavedLoc(prev => ({ ...prev, channelEmail: e.target.checked }))}
                           className="rounded text-blue-600 h-4 w-4"
                         />
-                        <label htmlFor="channel-email-toggle" className="font-semibold text-slate-900 cursor-pointer">
-                          Dispatch Verified Advisories to Email
+                        <label htmlFor="settings-channel-email-toggle" className="font-semibold text-slate-900 cursor-pointer">
+                          {t.dispatchEmailAdvisories || 'Dispatch Verified Advisories to Email'}
                         </label>
                       </div>
 
@@ -1210,7 +1212,7 @@ export default function Citizen({
                   disabled={savingLoc}
                   className="bg-[#174b3c] hover:bg-[#123b30] text-white text-xs px-4 py-2 rounded-lg font-bold shadow-xs disabled:opacity-50"
                 >
-                  {savingLoc ? 'Saving…' : 'Save Location Preferences'}
+                  {savingLoc ? (lang === 'si' ? 'සුරකිමින් පවතී…' : 'Saving…') : (t.savePreferencesBtn || 'Save Location Preferences')}
                 </button>
                 {locFeedback && (
                   <span className={`text-xs font-semibold ${locFeedback.error ? 'text-rose-600' : 'text-emerald-700'}`}>

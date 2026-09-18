@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { request } from './api.js';
 
-export default function Relief() {
+export default function Relief({ lang = 'en', t = {} }) {
   const [shelters, setShelters] = useState([]);
   const [helpReports, setHelpReports] = useState([]);
   const [feedStatus, setFeedStatus] = useState(null);
