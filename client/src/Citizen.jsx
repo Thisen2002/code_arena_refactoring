@@ -9,8 +9,8 @@ const initial = () => ({ kind: 'hazard', helpCategory: 'rescue', description: ''
 export default function Citizen({ lang = 'en', t: propT }) {
   const t = propT || i18n[lang] || i18n.en;
   const [form, setForm] = useState(initial);
-  const [photo, setPhoto] = useState(null);
-  const [preview, setPreview] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [previews, setPreviews] = useState([]);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState(null);
@@ -19,10 +19,10 @@ export default function Citizen({ lang = 'en', t: propT }) {
   const fileInput = useRef(null);
   const key = useRef(crypto.randomUUID());
   useEffect(() => {
-    if (!photo) { setPreview(''); return; }
-    const url = URL.createObjectURL(photo); setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
+    if (photos.length === 0) { setPreviews([]); return; }
+    const urls = photos.map(p => URL.createObjectURL(p)); setPreviews(urls);
+    return () => urls.forEach(u => URL.revokeObjectURL(u));
+  }, [photos]);
 
   const lat = Number(form.latitude);
   const lon = Number(form.longitude);
@@ -40,17 +40,17 @@ export default function Citizen({ lang = 'en', t: propT }) {
   async function submit(event) {
     event.preventDefault(); if (saving) return;
     setMessage(null);
-    if (!photo || form.description.trim().length < 10 || !form.latitude.trim() || !form.longitude.trim()) { setMessage({ error: true, text: 'Add a photo, a description of at least 10 characters, and both coordinates.' }); return; }
+    if (photos.length === 0 || form.description.trim().length < 10 || !form.latitude.trim() || !form.longitude.trim()) { setMessage({ error: true, text: 'Add at least one photo, a description of at least 10 characters, and both coordinates.' }); return; }
     const body = new FormData();
     const data = { kind: form.kind, description: form.description.trim(), latitude: Number(form.latitude), longitude: Number(form.longitude), locationSource: form.locationSource, submissionKey: key.current };
     if (form.kind === 'help') data.helpCategory = form.helpCategory;
     if (form.locationSource === 'device') data.gpsAccuracy = form.gpsAccuracy;
-    body.append('report', JSON.stringify(data)); body.append('photo', photo);
+    body.append('report', JSON.stringify(data)); photos.forEach(p => body.append('photos', p));
     setSaving(true);
     try {
       const { report, replayed } = await request('/api/reports', { method: 'POST', body });
       setMessage({ text: `${replayed ? 'Already saved' : 'Saved to MongoDB'}. Report ID: ${report._id}. Your photo is stored; assessment and dispatch have not happened.` });
-      setForm(initial()); setPhoto(null); fileInput.current.value = ''; key.current = crypto.randomUUID(); setGpsMessage(''); setRefresh(n => n + 1);
+      setForm(initial()); setPhotos([]); fileInput.current.value = ''; key.current = crypto.randomUUID(); setGpsMessage(''); setRefresh(n => n + 1);
     } catch (error) { setMessage({ error: true, text: `${error.message} Check your reports before changing the form. Retrying unchanged uses the same submission key.` }); }
     finally { setSaving(false); }
   }
@@ -363,23 +363,38 @@ export default function Citizen({ lang = 'en', t: propT }) {
                     ref={fileInput}
                     id="photo"
                     type="file"
+                    multiple
                     accept="image/jpeg,image/png,image/webp"
                     required
                     onChange={e => {
-                      const file = e.target.files[0];
-                      if (file && file.size > 5 * 1024 * 1024) {
-                        setMessage({ error: true, text: 'Choose a photo no larger than 5 MiB.' });
+                      const files = Array.from(e.target.files);
+                      if (files.length > 3) {
+                        setMessage({ error: true, text: 'You can upload a maximum of 3 photos.' });
                         e.target.value = '';
-                        setPhoto(null);
+                        setPhotos([]);
                         return;
                       }
-                      setPhoto(file || null);
+                      for (const file of files) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          setMessage({ error: true, text: 'Each photo must be no larger than 5 MiB.' });
+                          e.target.value = '';
+                          setPhotos([]);
+                          return;
+                        }
+                      }
+                      setPhotos(files);
                       key.current = crypto.randomUUID();
                       setMessage(null);
                     }}
                   />
-                  <p className="muted text-xs mt-2">JPEG, PNG or WebP · up to 5 MiB / 20 megapixels. Original metadata is retained as private evidence. Avoid identifiable bystanders where possible.</p>
-                  {preview && <img className="photo-preview mt-3" src={preview} alt="Preview of your selected evidence" />}
+                  <p className="muted text-xs mt-2">JPEG, PNG or WebP · up to 3 photos, max 5 MiB each. The first photo is prioritized for AI analysis.</p>
+                  {previews.length > 0 && (
+                    <div className="flex gap-3 mt-3 overflow-x-auto pb-2">
+                      {previews.map((src, i) => (
+                        <img key={i} className="w-24 h-24 object-cover shrink-0 rounded-lg shadow-sm border border-slate-200" src={src} alt={`Preview ${i + 1}`} />
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button className="secondary" type="button" disabled={locating} onClick={locate}>
                   {locating ? (lang === 'si' ? 'ස්ථානය ලබාගනිමින් පවතී…' : 'Getting location…') : t.detectLocation}

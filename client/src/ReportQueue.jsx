@@ -151,7 +151,22 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
             {own ? 'View Status & Details →' : (report.assessment?.status === 'evaluated' ? 'Inspect 5-check case' : 'Assess case')}
           </button>
         </div>
-        </div>{report.photo ? <a href={report.photo.url} target="_blank" rel="noreferrer" aria-label="Open original report photo"><img loading="lazy" className="report-photo" src={report.photo.url} alt="Submitted evidence" /></a> : <p className="muted text-xs">No photo in this record.</p>}</div></li>)}</ul>}
+        </div>
+        {(report.photo || report.extraPhotos?.length > 0) ? (
+          <div className="flex flex-col gap-2 pt-2">
+            {report.photo && (
+              <a href={report.photo.url} target="_blank" rel="noreferrer" aria-label="Open original report photo">
+                <img loading="lazy" className="report-photo m-0 mt-0" src={report.photo.url} alt="Submitted evidence" />
+              </a>
+            )}
+            {report.extraPhotos?.map((p, i) => (
+              <a key={i} href={p.url} target="_blank" rel="noreferrer" aria-label={`Open extra photo ${i + 1}`}>
+                <img loading="lazy" className="report-photo m-0 mt-0" src={p.url} alt={`Extra evidence ${i + 1}`} />
+              </a>
+            ))}
+          </div>
+        ) : <p className="muted text-xs mt-2">No photo in this record.</p>}
+        </div></li>)}</ul>}
     </>}
     <div className="flex gap-3 mt-5"><button className="secondary" disabled={offset === 0 || state.loading} onClick={() => setOffset(n => Math.max(0, n - 20))}>Previous</button><button className="secondary" disabled={!state.hasMore || state.loading} onClick={() => setOffset(n => n + 20)}>Next</button></div>
     {selectedReport && (

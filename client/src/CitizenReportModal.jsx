@@ -108,15 +108,28 @@ export default function CitizenReportModal({ report, onClose }) {
           </div>
 
           {/* Photo Evidence */}
-          {report.photo?.url && (
+          {(report.photo?.url || report.extraPhotos?.length > 0) && (
             <div className="space-y-2 text-xs">
               <strong className="block text-slate-800">Your Photo Evidence:</strong>
-              <div className="max-h-56 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
-                <img
-                  src={report.photo.url}
-                  alt="Your submitted photo evidence"
-                  className="max-h-56 w-auto object-contain"
-                />
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {report.photo?.url && (
+                  <div className="max-h-56 shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
+                    <img
+                      src={report.photo.url}
+                      alt="Your submitted photo evidence"
+                      className="max-h-56 w-auto object-contain"
+                    />
+                  </div>
+                )}
+                {report.extraPhotos?.map((p, i) => (
+                  <div key={i} className="max-h-56 shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
+                    <img
+                      src={p.url}
+                      alt={`Extra photo ${i + 1}`}
+                      className="max-h-56 w-auto object-contain"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}

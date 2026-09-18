@@ -25,6 +25,7 @@ export function reportDto(document) {
     status: r.status, locationEvidence: 'unverified', createdAt: r.createdAt,
     legacy: !r.ownerId, history: r.history || [],
     photo: r.photo?.fileId ? { url: `/api/reports/${r._id}/photo`, mimeType: r.photo.mimeType, size: r.photo.size, sha256: r.photo.sha256, exifGps: r.photo.exifGps?.latitude !== undefined ? r.photo.exifGps : null } : null,
+    extraPhotos: (r.extraPhotos || []).map((p, i) => ({ url: `/api/reports/${r._id}/extra-photos/${i}`, mimeType: p.mimeType, size: p.size })),
     assessment: r.assessment?.status ? {
       status: r.assessment.status,
       evaluatedAt: r.assessment.evaluatedAt,
@@ -39,21 +40,25 @@ export function reportsRouter({ reports = Report, storage = evidenceStore() } = 
   const router = Router();
   // Busboy signals partsLimit on reaching the configured count; allow its terminal
   // boundary while files/fields still strictly enforce one of each.
-  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_PHOTO_BYTES, files: 1, fields: 1, fieldSize: 8192, parts: 3 } }).single('photo');
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_PHOTO_BYTES, files: 3, fields: 1, fieldSize: 8192, parts: 5 } }).array('photos', 3);
   const throttle = rateLimit({ windowMs: 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many uploads. Please wait a minute.' } });
   router.post('/', allow('citizen'), throttle, (req, res, next) => {
     if (req.user?.isRestricted) return res.status(403).json({ error: 'Your account has been administratively restricted from submitting reports.' });
-    if (!req.is('multipart/form-data')) return res.status(415).json({ error: 'Submit multipart form data with one photo and one report JSON field.' });
+    if (!req.is('multipart/form-data')) return res.status(415).json({ error: 'Submit multipart form data with up to 3 photos and one report JSON field.' });
     upload(req, res, next);
   }, async (req, res) => {
     let body;
     try { body = JSON.parse(req.body?.report); } catch { return res.status(400).json({ error: 'Report must be valid JSON.' }); }
     const parsed = reportInput.safeParse(body);
     if (!parsed.success) return res.status(400).json({ error: 'Invalid report.', fields: parsed.error.issues.map(i => ({ field: i.path.join('.'), message: i.message })) });
-    if (!req.file) return res.status(400).json({ error: 'A photo is required for new reports and help requests.' });
-    const photo = await inspectImage(req.file.buffer);
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'A photo is required for new reports and help requests.' });
+    const photo = await inspectImage(req.files[0].buffer);
     const input = parsed.data;
-    const requestHash = createHash('sha256').update(JSON.stringify(input)).update(photo.sha256).digest('hex');
+    
+    let hash = createHash('sha256').update(JSON.stringify(input)).update(photo.sha256);
+    for (let i = 1; i < req.files.length; i++) hash.update(req.files[i].buffer.subarray(0, 512));
+    const requestHash = hash.digest('hex');
+    
     const key = { ownerId: req.user._id, submissionKey: input.submissionKey };
     async function replay() {
       const existing = await reports.findOne(key).select('+requestHash');
@@ -64,13 +69,21 @@ export function reportsRouter({ reports = Report, storage = evidenceStore() } = 
     }
     await reports.init(); // Wait for the unique submission index before accepting a write.
     if (await replay()) return;
-    const fileId = await storage.save(req.file.buffer, { ...photo, ownerId: String(req.user._id), submissionKey: input.submissionKey });
+    
+    const fileId = await storage.save(req.files[0].buffer, { ...photo, ownerId: String(req.user._id), submissionKey: input.submissionKey });
+    const extraPhotos = [];
+    for (let i = 1; i < req.files.length; i++) {
+      const extraFileId = await storage.save(req.files[i].buffer, { mimeType: req.files[i].mimetype, size: req.files[i].size, ownerId: String(req.user._id), submissionKey: input.submissionKey });
+      extraPhotos.push({ fileId: extraFileId, mimeType: req.files[i].mimetype, size: req.files[i].size });
+    }
+    
     try {
-      const report = await reports.create({ ...input, ownerId: req.user._id, photo: { ...photo, fileId }, requestHash, history: [{ action: 'submitted', actorId: req.user._id, at: new Date() }] });
+      const report = await reports.create({ ...input, ownerId: req.user._id, photo: { ...photo, fileId }, extraPhotos, requestHash, history: [{ action: 'submitted', actorId: req.user._id, at: new Date() }] });
       res.status(201).json({ report: reportDto(report) });
     } catch (error) {
       // A failed/duplicate report must not leave its newly uploaded file behind.
-      await storage.remove(fileId).catch(() => { console.warn('Evidence cleanup needs review.'); });
+      const allIds = [fileId, ...extraPhotos.map(p => p.fileId)];
+      await Promise.allSettled(allIds.map(id => storage.remove(id))).catch(() => { console.warn('Evidence cleanup needs review.'); });
       if (error.code === 11000 && await replay()) return;
       throw error;
     }
@@ -96,6 +109,16 @@ export function reportsRouter({ reports = Report, storage = evidenceStore() } = 
     if (!req.report.photo?.fileId) return res.status(404).json({ error: 'No photo is stored for this report.' });
     res.set({ 'Content-Type': req.report.photo.mimeType, 'X-Content-Type-Options': 'nosniff', 'Content-Disposition': 'inline', 'Cache-Control': 'private, no-store' });
     const stream = storage.open(req.report.photo.fileId);
+    stream.on('error', () => { if (!res.headersSent) res.status(503).json({ error: 'Photo is temporarily unavailable.' }); else res.destroy(); });
+    res.on('close', () => stream.destroy());
+    stream.pipe(res);
+  });
+  router.get('/:id/extra-photos/:index', findVisible, (req, res) => {
+    const index = parseInt(req.params.index, 10);
+    const photo = req.report.extraPhotos?.[index];
+    if (!photo?.fileId) return res.status(404).json({ error: 'Extra photo not found.' });
+    res.set({ 'Content-Type': photo.mimeType, 'X-Content-Type-Options': 'nosniff', 'Content-Disposition': 'inline', 'Cache-Control': 'private, no-store' });
+    const stream = storage.open(photo.fileId);
     stream.on('error', () => { if (!res.headersSent) res.status(503).json({ error: 'Photo is temporarily unavailable.' }); else res.destroy(); });
     res.on('close', () => stream.destroy());
     stream.pipe(res);

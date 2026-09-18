@@ -110,9 +110,18 @@ export default function CaseModal({ report, onClose, onUpdated }) {
                 <div>EXIF Photo Metadata: {currentReport.photo?.exifGps ? 'GPS tagged (unverified)' : 'Unknown / not present'}</div>
               </div>
             </div>
-            {currentReport.photo?.url && (
-              <div className="w-32 h-32 flex-shrink-0 bg-slate-200 rounded overflow-hidden">
-                <img src={currentReport.photo.url} alt="Submitted evidence" className="w-full h-full object-cover" />
+            {(currentReport.photo?.url || currentReport.extraPhotos?.length > 0) && (
+              <div className="flex flex-col gap-2">
+                {currentReport.photo?.url && (
+                  <div className="w-32 h-32 flex-shrink-0 bg-slate-200 rounded overflow-hidden">
+                    <img src={currentReport.photo.url} alt="Submitted evidence" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                {currentReport.extraPhotos?.map((p, i) => (
+                  <div key={i} className="w-32 h-32 flex-shrink-0 bg-slate-200 rounded overflow-hidden">
+                    <img src={p.url} alt={`Extra evidence ${i + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
               </div>
             )}
           </div>

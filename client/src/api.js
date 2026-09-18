@@ -7,7 +7,7 @@ export async function request(path, options = {}) {
   const response = await fetch(path, {
     credentials: 'same-origin', ...options,
     headers,
-    signal: options.signal || AbortSignal.timeout(20000),
+    signal: options.signal || AbortSignal.timeout(130000),
   });
   const text = await response.text();
   let data = {};

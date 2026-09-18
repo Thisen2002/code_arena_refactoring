@@ -13,6 +13,9 @@ const reportSchema = new mongoose.Schema({
     width: Number, height: Number,
     exifGps: { latitude: Number, longitude: Number },
   },
+  extraPhotos: [{
+    fileId: mongoose.Schema.Types.ObjectId, mimeType: String, size: Number
+  }],
   submissionKey: { type: String },
   requestHash: { type: String, select: false },
   history: [{ _id: false, action: String, actorId: mongoose.Schema.Types.ObjectId, at: Date }],

@@ -144,6 +144,28 @@ test('legacy Report defaults preserved and private storage fields are not return
   const dto = reportDto(report); assert.equal(dto.legacy, true); assert.equal(dto.photo, null); assert.equal(dto.requestHash, undefined);
   await assert.rejects(new Report({ ...valid, longitude: 200 }).validate());
 });
+test('reportDto maps multiple photos to separate endpoints correctly', () => {
+  const mockReport = {
+    _id: 'report123',
+    kind: 'hazard',
+    description: 'Test multiple photos',
+    latitude: 6.9, longitude: 79.8,
+    photo: { fileId: 'file1', mimeType: 'image/jpeg', size: 1000, sha256: 'abc' },
+    extraPhotos: [
+      { fileId: 'file2', mimeType: 'image/png', size: 2000 },
+      { fileId: 'file3', mimeType: 'image/webp', size: 3000 }
+    ],
+    toObject() { return this; }
+  };
+  
+  const dto = reportDto(mockReport);
+  assert.equal(dto.photo.url, '/api/reports/report123/photo');
+  assert.equal(dto.extraPhotos.length, 2);
+  assert.equal(dto.extraPhotos[0].url, '/api/reports/report123/extra-photos/0');
+  assert.equal(dto.extraPhotos[0].mimeType, 'image/png');
+  assert.equal(dto.extraPhotos[1].url, '/api/reports/report123/extra-photos/1');
+  assert.equal(dto.extraPhotos[1].mimeType, 'image/webp');
+});
 test('AI schema rejects invented location evidence and invalid confidence', () => {
   const sample = { hazard: 'unknown', risk: 'unknown', reasons: ['Test fixture'], uncertainty: ['No GPS evidence'], confidence: 0.2, locationEvidence: 'unknown', needsMoreInformation: true };
   assert.ok(assessmentSchema.safeParse(sample).success);
