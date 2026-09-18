@@ -159,6 +159,15 @@ input, textarea, select {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+input[type="checkbox"], input[type="radio"] {
+  display: inline-block;
+  width: auto;
+  margin-top: 0;
+  padding: 0;
+  accent-color: #0d9488;
+  cursor: pointer;
+}
+
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: #0d9488;

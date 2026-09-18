@@ -37,6 +37,7 @@ export default function Citizen({
   onClearReportModalTrigger,
   searchQuery: propSearchQuery,
   onSearchChange,
+  onUnreadCountChange,
 }) {
   const t = propT || i18n[lang] || i18n.en;
 
@@ -260,8 +261,11 @@ export default function Citizen({
       }
 
       if (notifRes.status === 'fulfilled') {
-        setNotifications(notifRes.value.notifications || []);
-        setUnreadCount(notifRes.value.unreadCount || 0);
+        const notifList = notifRes.value.notifications || [];
+        setNotifications(notifList);
+        const count = notifRes.value.unreadCount ?? notifList.filter(n => !n.read).length;
+        setUnreadCount(count);
+        if (onUnreadCountChange) onUnreadCountChange(count);
       }
 
       if (shelterRes.status === 'fulfilled') setShelters(shelterRes.value.shelters || []);
@@ -306,7 +310,11 @@ export default function Citizen({
     try {
       await request(`/api/notifications/${notifId}/read`, { method: 'PATCH' });
       setNotifications(list => list.map(n => (n._id === notifId ? { ...n, read: true } : n)));
-      setUnreadCount(c => Math.max(0, c - 1));
+      setUnreadCount(c => {
+        const next = Math.max(0, c - 1);
+        if (onUnreadCountChange) onUnreadCountChange(next);
+        return next;
+      });
     } catch {}
   }
 
@@ -315,6 +323,7 @@ export default function Citizen({
       await request('/api/notifications/mark-all-read', { method: 'POST' });
       setNotifications(list => list.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
+      if (onUnreadCountChange) onUnreadCountChange(0);
     } catch {}
   }
 
@@ -780,7 +789,256 @@ export default function Citizen({
                       )}
                     </div>
                   ))}
+                  {clarifications.length === 0 && alerts.length === 0 && (
+                    <p className="text-xs text-slate-400 py-2">
+                      {t.allClearDesc || 'There are currently no active river flood breaches or open responder inquiries in your zone.'}
+                    </p>
+                  )}
                 </div>
+              </div>
+
+              {/* Section 1: Monitored Saved Location & Alert Delivery (Screenshot 1) */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div>
+                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block">
+                      {t.notifEyebrow || 'PROXIMITY ADVISORIES'}
+                    </span>
+                    <h2 className="text-xl font-bold text-slate-900">{t.notifHeading || 'Monitored Saved Location & Alert Delivery'}</h2>
+                  </div>
+                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold text-xs px-2.5 py-1 rounded-md">
+                    {savedLoc.optInAlerts ? (lang === 'si' ? '● සක්‍රීයයි' : '• ALERTS ACTIVE') : (lang === 'si' ? '○ අක්‍රීයයි' : '○ ALERTS OFF')}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mb-5">
+                  {t.notifSubheading || 'Receive automatic updates relevant to your saved location when river gauges rise or field crews resolve hazards.'}
+                </p>
+
+                <form onSubmit={handleSaveLocation} className="space-y-4 text-xs">
+                  <div className="p-5 bg-white border border-slate-200 rounded-xl space-y-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        id="opt-in-alerts"
+                        type="checkbox"
+                        checked={savedLoc.optInAlerts}
+                        onChange={e => setSavedLoc(prev => ({ ...prev, optInAlerts: e.target.checked }))}
+                        className="rounded text-blue-600 h-4 w-4 shrink-0"
+                      />
+                      <label htmlFor="opt-in-alerts" className="font-bold text-sm text-slate-900 cursor-pointer">
+                        {t.optInCheckbox || 'Opt in to Nearby Emergency Warnings for My Saved Location'}
+                      </label>
+                    </div>
+
+                    {savedLoc.optInAlerts && (
+                      <div className="space-y-4 pt-3 border-t border-slate-200/80">
+                        <div>
+                          <label htmlFor="saved-ward" className="block font-semibold text-xs text-slate-700 mb-1.5">
+                            {t.primaryWardLabel || 'Primary Monitored Ward / Corridor'}
+                          </label>
+                          <select
+                            id="saved-ward"
+                            value={savedLoc.wardId || ''}
+                            onChange={e => {
+                              const wId = e.target.value;
+                              const found = availableWards.find(w => w.id === wId);
+                              setSavedLoc(prev => ({
+                                ...prev,
+                                wardId: wId,
+                                wardName: found ? found.name : prev.wardName,
+                                latitude: found?.center?.latitude ?? prev.latitude,
+                                longitude: found?.center?.longitude ?? prev.longitude,
+                              }));
+                            }}
+                            className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          >
+                            {availableWards.map(w => (
+                              <option key={w.id} value={w.id}>
+                                {w.name} ({w.district})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="p-3.5 bg-white border border-slate-200 rounded-lg space-y-2">
+                          <div className="flex items-center gap-3">
+                            <input
+                              id="channel-email-toggle"
+                              type="checkbox"
+                              checked={Boolean(savedLoc.channelEmail)}
+                              onChange={e => setSavedLoc(prev => ({ ...prev, channelEmail: e.target.checked }))}
+                              className="rounded text-blue-600 h-4 w-4 shrink-0"
+                            />
+                            <label htmlFor="channel-email-toggle" className="font-semibold text-xs text-slate-900 cursor-pointer">
+                              {t.emailChannelToggle || 'Optional Email Delivery Channel'}
+                            </label>
+                          </div>
+
+                          {savedLoc.channelEmail && (
+                            <div className="space-y-1.5 pt-1">
+                              <label htmlFor="citizen-email" className="block text-[11px] text-slate-600 font-medium">
+                                {lang === 'si' ? 'විද්‍යුත් තැපැල් ලිපිනය (Email):' : 'Recipient Email Address:'}
+                              </label>
+                              <input
+                                id="citizen-email"
+                                type="email"
+                                placeholder="name@example.com"
+                                value={savedLoc.email || ''}
+                                onChange={e => setSavedLoc(prev => ({ ...prev, email: e.target.value }))}
+                                className="w-full p-2 border border-slate-300 rounded text-xs"
+                                required={savedLoc.channelEmail}
+                              />
+                              <p className="text-[10px] text-slate-500 italic mt-1 leading-relaxed">
+                                🔒 Strict Privacy: Emails contain only the affected corridor, warning type, timestamp, and a link to live detour routes. Private citizen report descriptions, photos, and exact coordinates are never emailed.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="submit"
+                      disabled={savingLoc}
+                      className="bg-[#174b3c] hover:bg-[#123b30] text-white text-xs px-4 py-2.5 rounded-lg font-bold shadow-xs disabled:opacity-50 transition-colors"
+                    >
+                      {savingLoc ? (lang === 'si' ? 'සුරකිමින් පවතී…' : 'Saving Settings…') : (t.savePreferencesBtn || 'Save Location & Preferences')}
+                    </button>
+                    {locFeedback && (
+                      <span className={`text-xs font-semibold ${locFeedback.error ? 'text-rose-600' : 'text-emerald-700'}`}>
+                        {locFeedback.text}
+                      </span>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Section 2: In-App Notification Feed (Screenshot 2) */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                      <span>In-App Location Alerts Feed</span>
+                      {unreadCount > 0 && (
+                        <span className="bg-[#e11d48] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                          {unreadCount} Unread
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Updates triggered automatically when hazards are confirmed, weather warnings issue, or incidents are resolved near {savedLoc.wardName || 'your area'}.
+                    </p>
+                  </div>
+
+                  {notifications.length > 0 && unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      className="border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
+                    >
+                      <span>✓</span> Mark All as Read
+                    </button>
+                  )}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <span className="text-2xl">🔔</span>
+                    <h4 className="font-bold text-slate-800 text-sm">No Location Alerts Yet</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      {savedLoc.optInAlerts
+                        ? `Your monitored location is set to ${savedLoc.wardName || 'your area'}. When responders confirm hazards or river gauges trigger in your area, instant advisories will display here.`
+                        : 'Opt in above to receive proactive advisories when incidents or weather warnings affect your saved location.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {notifications.map(n => (
+                      <div
+                        key={n._id}
+                        className={`p-4 rounded-xl border-2 transition-all bg-white ${
+                          !n.read ? 'border-[#34d399] shadow-xs' : 'border-slate-200 opacity-90'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
+                                n.type === 'incident_resolved'
+                                  ? 'bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]'
+                                  : n.type === 'officer_confirmed_incident'
+                                  ? 'bg-[#fff1f2] text-[#9f1239] border-[#fecdd3]'
+                                  : 'bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]'
+                              }`}
+                            >
+                              {n.type === 'incident_resolved'
+                                ? '✅ HAZARD RESOLVED'
+                                : n.type === 'officer_confirmed_incident'
+                                ? '🚨 OFFICER-CONFIRMED INCIDENT'
+                                : '🌦️ SIMULATED WEATHER WARNING'}
+                            </span>
+                            {!n.read && (
+                              <span className="bg-[#059669] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                                NEW
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-500">
+                              {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          {/* Delivery Status Pill & Mark Read */}
+                          <div className="flex items-center gap-2">
+                            {n.emailDelivery?.sent ? (
+                              <span className="text-[10px] font-semibold bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0] text-[#15803d]" title={`Dispatched to ${n.emailDelivery.recipientEmail}`}>
+                                ✉️ Email Delivered
+                              </span>
+                            ) : n.emailDelivery?.attempted && !n.emailDelivery?.sent ? (
+                              <span className="text-[10px] font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-300 text-amber-800" title={n.emailDelivery.error}>
+                                ⚠️ Email Failed (In-App Safe)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                                📱 In-App Alert
+                              </span>
+                            )}
+
+                            {!n.read && (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkRead(n._id)}
+                                className="text-[11px] text-slate-600 hover:text-slate-900 font-semibold underline ml-1 cursor-pointer"
+                              >
+                                Mark Read
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <h4 className="font-bold text-sm text-slate-900 mb-1">
+                          {n.title}
+                        </h4>
+                        <p className="text-xs text-slate-600 mb-2.5 leading-relaxed">{n.message}</p>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                          <div>
+                            Corridor / Ward: <strong className="text-slate-800">{n.area}</strong> · Source: {n.source}
+                          </div>
+                          {n.type !== 'incident_resolved' && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveCategory('routes')}
+                              className="font-bold text-xs text-[#0f766e] hover:text-[#065f46] hover:underline cursor-pointer"
+                            >
+                              Check Safe Evacuation Detour Routes →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
