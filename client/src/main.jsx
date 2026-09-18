@@ -224,7 +224,7 @@ function App() {
     request('/api/notifications')
       .then(d => {
         if (d && typeof d.unreadCount === 'number') {
-          setUnreadNotifCount(d.unreadCount > 0 ? d.unreadCount : 3);
+          setUnreadNotifCount(d.unreadCount);
         }
       })
       .catch(() => {});
@@ -253,6 +253,7 @@ function App() {
           onSearchChange={setSearchQuery}
           onOpenProfile={() => setShowProfile(true)}
           onSignOut={signOut}
+          onUnreadCountChange={setUnreadNotifCount}
         />
       );
     }
