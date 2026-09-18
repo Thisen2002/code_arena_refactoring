@@ -22,6 +22,7 @@ export default function ProfileModal({ user, onClose, onUserUpdated }) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     // Load fresh profile from backend
@@ -336,7 +337,7 @@ export default function ProfileModal({ user, onClose, onUserUpdated }) {
                 </label>
                 <input
                   id="currentPw"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="Enter current password"
                   value={currentPassword}
@@ -351,7 +352,7 @@ export default function ProfileModal({ user, onClose, onUserUpdated }) {
                 </label>
                 <input
                   id="newPw"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   minLength={10}
                   maxLength={128}
@@ -368,7 +369,7 @@ export default function ProfileModal({ user, onClose, onUserUpdated }) {
                 </label>
                 <input
                   id="confirmNewPw"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   minLength={10}
                   maxLength={128}
@@ -388,6 +389,11 @@ export default function ProfileModal({ user, onClose, onUserUpdated }) {
                   )}
                 </div>
               )}
+
+              <label className="flex items-center gap-2 mt-1 text-sm cursor-pointer">
+                <input type="checkbox" className="w-auto" checked={showPassword} onChange={() => setShowPassword(!showPassword)} />
+                Show passwords
+              </label>
 
               <p className="text-[11px] text-slate-500">
                 Password must contain at least 10 characters. Sessions are secured with salted scrypt hashing.

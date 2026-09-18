@@ -6,6 +6,7 @@ export default function AuthPanel({ onUser }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Email OTP verification state
   const [pendingVerification, setPendingVerification] = useState(null);
@@ -221,12 +222,16 @@ export default function AuthPanel({ onUser }) {
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               minLength={10}
               maxLength={128}
               required
             />
+            <label className="flex items-center gap-2 mt-2 text-sm cursor-pointer">
+              <input type="checkbox" className="w-auto" checked={showPassword} onChange={() => setShowPassword(!showPassword)} />
+              Show password
+            </label>
           </div>
           <p className="muted text-xs">Username: 3–40 letters, numbers or hyphens. Password: at least 10 characters.</p>
           <button type="submit" className="primary w-full" disabled={busy}>
@@ -314,7 +319,7 @@ export default function AuthPanel({ onUser }) {
               <input
                 id="regPassword"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 minLength={10}
                 maxLength={128}
@@ -332,7 +337,7 @@ export default function AuthPanel({ onUser }) {
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 minLength={10}
                 maxLength={128}
@@ -343,6 +348,10 @@ export default function AuthPanel({ onUser }) {
               />
             </div>
           </div>
+          <label className="flex items-center gap-2 mt-1 text-sm cursor-pointer">
+            <input type="checkbox" className="w-auto" checked={showPassword} onChange={() => setShowPassword(!showPassword)} />
+            Show passwords
+          </label>
 
           {regForm.password && regForm.confirmPassword && (
             <div className="text-xs">

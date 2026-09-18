@@ -146,7 +146,7 @@ label {
   color: #1c3b35;
 }
 
-input, textarea, select {
+input:not([type="checkbox"]):not([type="radio"]), textarea, select {
   display: block;
   width: 100%;
   margin-top: 6px;
@@ -159,7 +159,7 @@ input, textarea, select {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-input:focus, textarea:focus, select:focus {
+input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:focus {
   outline: none;
   border-color: #0d9488;
   box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
