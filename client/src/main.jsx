@@ -89,10 +89,19 @@ function roleViews(role) {
   return [];
 }
 
-function resolveView(hash, views) {
+function defaultRoleView(role) {
+  if (role === 'officer') return 'Operations';
+  if (role === 'relief') return 'Relief';
+  if (role === 'crew') return 'Crew';
+  if (role === 'admin') return 'Operations';
+  return 'Citizen';
+}
+
+function resolveView(hash, views, role) {
   const normalized = (hash || '').replace('#', '').trim().toLowerCase();
-  const direct = views.find(v => v.toLowerCase() === normalized);
-  return direct || views[0] || 'Citizen';
+  const direct = (views || []).find(v => v.toLowerCase() === normalized);
+  if (direct) return direct;
+  return defaultRoleView(role);
 }
 
 function App() {
@@ -134,15 +143,17 @@ function App() {
   }, []);
 
   const availableViews = user ? roleViews(user.role) : [];
-  const [view, setView] = useState(() => resolveView(location.hash, availableViews));
+  const [view, setView] = useState(() => resolveView(location.hash, availableViews, user?.role));
 
   useEffect(() => {
     function onHashChange() {
-      setView(resolveView(location.hash, availableViews));
+      if (!user) return;
+      const views = roleViews(user.role);
+      setView(resolveView(location.hash, views, user.role));
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [availableViews.join(',')]);
+  }, [user]);
 
   useEffect(() => {
     let active = true;
@@ -152,7 +163,15 @@ function App() {
       try {
         const data = await request('/api/auth/me');
         if (!active) return;
-        setUser(data.user);
+        const loggedUser = data.user;
+        setUser(loggedUser);
+        const views = roleViews(loggedUser.role);
+        const targetView = resolveView(location.hash, views, loggedUser.role);
+        setView(targetView);
+        const targetHash = targetView.toLowerCase();
+        if ((location.hash || '').replace('#', '').toLowerCase() !== targetHash) {
+          location.hash = targetHash;
+        }
         setAuthError('');
         setChecking(false);
       } catch (err) {
@@ -177,13 +196,23 @@ function App() {
   function signedIn(value) {
     setUser(value);
     setAuthError('');
-    location.hash = ({ citizen: 'citizen', officer: 'operations', admin: 'operations', relief: 'relief', crew: 'crew' })[value.role];
+    const target = defaultRoleView(value.role);
+    setView(target);
+    location.hash = ({
+      citizen: 'citizen',
+      officer: 'operations',
+      admin: 'operations',
+      relief: 'relief',
+      crew: 'crew',
+    })[value.role] || 'citizen';
   }
 
   async function signOut() {
     try {
       await request('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      setView('Citizen');
+      location.hash = '';
       setAuthError('');
     } catch (e) {
       setAuthError(e.message);
@@ -596,7 +625,13 @@ function App() {
               /* Workspace Title Pill for Staff Roles */
               <div className="flex items-center gap-2.5">
                 <span className="font-extrabold text-sm text-slate-800 tracking-tight">
-                  {view === 'Operations' ? 'Operations Incident Desk' : view === 'Relief' ? 'Relief Coordination Desk' : `${view} Workspace`}
+                  {view === 'Operations'
+                    ? 'Operations Incident Desk'
+                    : view === 'Relief'
+                    ? 'Relief Coordination Desk'
+                    : view === 'Crew'
+                    ? 'Field Crew Work Orders'
+                    : `${view} Workspace`}
                 </span>
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 uppercase border border-slate-200/60">
                   {user?.role} role
