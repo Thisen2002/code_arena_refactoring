@@ -19,6 +19,10 @@ import {
   SheltersIcon,
   ReportsIcon,
   SettingsIcon,
+  OperationsIcon,
+  ReliefIcon,
+  CrewIcon,
+  AdminIcon,
 } from './icons.jsx';
 
 class ErrorBoundary extends React.Component {
@@ -78,17 +82,26 @@ class ErrorBoundary extends React.Component {
 
 function roleViews(role) {
   if (role === 'citizen') return ['Citizen'];
-  if (role === 'officer') return ['Citizen', 'Operations', 'Crew', 'Relief'];
+  if (role === 'officer') return ['Operations', 'Relief'];
   if (role === 'crew') return ['Crew'];
   if (role === 'relief') return ['Relief'];
-  if (role === 'admin') return ['Citizen', 'Operations', 'Crew', 'Relief', 'Admin'];
+  if (role === 'admin') return ['Operations', 'Crew', 'Relief', 'Admin'];
   return [];
 }
 
-function resolveView(hash, views) {
+function defaultRoleView(role) {
+  if (role === 'officer') return 'Operations';
+  if (role === 'relief') return 'Relief';
+  if (role === 'crew') return 'Crew';
+  if (role === 'admin') return 'Operations';
+  return 'Citizen';
+}
+
+function resolveView(hash, views, role) {
   const normalized = (hash || '').replace('#', '').trim().toLowerCase();
-  const direct = views.find(v => v.toLowerCase() === normalized);
-  return direct || views[0] || 'Citizen';
+  const direct = (views || []).find(v => v.toLowerCase() === normalized);
+  if (direct) return direct;
+  return defaultRoleView(role);
 }
 
 function App() {
@@ -130,15 +143,17 @@ function App() {
   }, []);
 
   const availableViews = user ? roleViews(user.role) : [];
-  const [view, setView] = useState(() => resolveView(location.hash, availableViews));
+  const [view, setView] = useState(() => resolveView(location.hash, availableViews, user?.role));
 
   useEffect(() => {
     function onHashChange() {
-      setView(resolveView(location.hash, availableViews));
+      if (!user) return;
+      const views = roleViews(user.role);
+      setView(resolveView(location.hash, views, user.role));
     }
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, [availableViews.join(',')]);
+  }, [user]);
 
   useEffect(() => {
     let active = true;
@@ -148,7 +163,15 @@ function App() {
       try {
         const data = await request('/api/auth/me');
         if (!active) return;
-        setUser(data.user);
+        const loggedUser = data.user;
+        setUser(loggedUser);
+        const views = roleViews(loggedUser.role);
+        const targetView = resolveView(location.hash, views, loggedUser.role);
+        setView(targetView);
+        const targetHash = targetView.toLowerCase();
+        if ((location.hash || '').replace('#', '').toLowerCase() !== targetHash) {
+          location.hash = targetHash;
+        }
         setAuthError('');
         setChecking(false);
       } catch (err) {
@@ -173,13 +196,23 @@ function App() {
   function signedIn(value) {
     setUser(value);
     setAuthError('');
-    location.hash = ({ citizen: 'citizen', officer: 'operations', admin: 'operations', relief: 'relief', crew: 'crew' })[value.role];
+    const target = defaultRoleView(value.role);
+    setView(target);
+    location.hash = ({
+      citizen: 'citizen',
+      officer: 'operations',
+      admin: 'operations',
+      relief: 'relief',
+      crew: 'crew',
+    })[value.role] || 'citizen';
   }
 
   async function signOut() {
     try {
       await request('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      setView('Citizen');
+      location.hash = '';
       setAuthError('');
     } catch (e) {
       setAuthError(e.message);
@@ -206,7 +239,7 @@ function App() {
   function content() {
     if (checking) return <p role="status" className="py-6 text-slate-500">Checking your session…</p>;
     if (!user) return <AuthPanel onUser={signedIn} />;
-    if (view === 'Citizen' && (user.role === 'citizen' || ['officer', 'admin'].includes(user.role))) {
+    if (view === 'Citizen' && user.role === 'citizen') {
       return (
         <Citizen
           lang={lang}
@@ -224,7 +257,7 @@ function App() {
       );
     }
     if (view === 'Operations' && ['officer', 'admin'].includes(user.role)) return <ReportQueue title="Report inbox" />;
-    if (view === 'Crew' && ['crew', 'officer', 'admin'].includes(user.role)) return <Crew />;
+    if (view === 'Crew' && ['crew', 'admin'].includes(user.role)) return <Crew />;
     if (view === 'Relief' && ['relief', 'officer', 'admin'].includes(user.role)) return <Relief />;
     if (view === 'Admin' && user.role === 'admin') return <Admin />;
     return (
@@ -263,7 +296,7 @@ function App() {
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col md:flex-row">
       <a href="#main" className="skip">Skip to content</a>
 
-      {/* Left Navigation Sidebar - Docked to Dashboard */}
+      {/* Left Navigation Sidebar - Docked to Dashboard for All Roles */}
       <aside className="w-full md:w-60 bg-white border-b md:border-b-0 md:border-r border-slate-200/80 shrink-0 md:min-h-screen flex flex-col md:sticky md:top-0 md:h-screen overflow-y-auto z-40">
         {/* Brand Logo & Name */}
         <div className="p-4 sm:px-5 sm:py-4 flex items-center gap-3 border-b border-slate-100">
@@ -284,125 +317,276 @@ function App() {
 
         {/* Navigation Items with Monochrome Outline Vector Icons */}
         <nav className="p-3 space-y-1 flex-1">
-          {/* Home */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveCitizenTab('home');
-              if (view !== 'Citizen') location.hash = 'citizen';
-            }}
-            className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeCitizenTab === 'home' && view === 'Citizen'
-                ? 'bg-[#eef4ff] text-[#2563eb]'
-                : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
-            }`}
-          >
-            <HomeIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'home' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-            <span>Home</span>
-          </button>
+          {/* Citizen Navigation Items */}
+          {user?.role === 'citizen' && (
+            <>
+              {/* Home */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCitizenTab('home');
+                  if (view !== 'Citizen') location.hash = 'citizen';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeCitizenTab === 'home' && view === 'Citizen'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <HomeIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'home' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Home</span>
+              </button>
 
-          {/* Report Hazard */}
-          <button
-            type="button"
-            onClick={() => {
-              setReportModalTrigger({ type: 'hazard', ts: Date.now() });
-              if (view !== 'Citizen') location.hash = 'citizen';
-            }}
-            className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-all"
-          >
-            <HazardIcon className="w-5 h-5 text-slate-800 shrink-0" />
-            <span>Report Hazard</span>
-          </button>
+              {/* Report Hazard */}
+              <button
+                type="button"
+                onClick={() => {
+                  setReportModalTrigger({ type: 'hazard', ts: Date.now() });
+                  if (view !== 'Citizen') location.hash = 'citizen';
+                }}
+                className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-all"
+              >
+                <HazardIcon className="w-5 h-5 text-slate-800 shrink-0" />
+                <span>Report Hazard</span>
+              </button>
 
-          {/* Request Help */}
-          <button
-            type="button"
-            onClick={() => {
-              setReportModalTrigger({ type: 'help', ts: Date.now() });
-              if (view !== 'Citizen') location.hash = 'citizen';
-            }}
-            className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-all"
-          >
-            <HelpIcon className="w-5 h-5 text-slate-800 shrink-0" />
-            <span>Request Help</span>
-          </button>
+              {/* Request Help */}
+              <button
+                type="button"
+                onClick={() => {
+                  setReportModalTrigger({ type: 'help', ts: Date.now() });
+                  if (view !== 'Citizen') location.hash = 'citizen';
+                }}
+                className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-all"
+              >
+                <HelpIcon className="w-5 h-5 text-slate-800 shrink-0" />
+                <span>Request Help</span>
+              </button>
 
-          {/* Live Map */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveCitizenTab('routes');
-              if (view !== 'Citizen') location.hash = 'citizen';
-            }}
-            className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeCitizenTab === 'routes' && view === 'Citizen'
-                ? 'bg-[#eef4ff] text-[#2563eb]'
-                : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
-            }`}
-          >
-            <LiveMapIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'routes' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-            <span>Live Map</span>
-          </button>
+              {/* Live Map */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCitizenTab('routes');
+                  if (view !== 'Citizen') location.hash = 'citizen';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeCitizenTab === 'routes' && view === 'Citizen'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <LiveMapIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'routes' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Live Map</span>
+              </button>
 
-          {/* Alerts */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveCitizenTab('alerts');
-              if (view !== 'Citizen') location.hash = 'citizen';
-            }}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeCitizenTab === 'alerts' && view === 'Citizen'
-                ? 'bg-[#eef4ff] text-[#2563eb]'
-                : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
-            }`}
-          >
-            <div className="flex items-center gap-3.5">
-              <AlertsIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'alerts' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-              <span>Alerts</span>
-            </div>
-            {unreadNotifCount > 0 && (
-              <span className="bg-[#e11d48] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-2xs">
-                {unreadNotifCount}
-              </span>
-            )}
-          </button>
+              {/* Alerts */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCitizenTab('alerts');
+                  if (view !== 'Citizen') location.hash = 'citizen';
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeCitizenTab === 'alerts' && view === 'Citizen'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <AlertsIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'alerts' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                  <span>Alerts</span>
+                </div>
+                {unreadNotifCount > 0 && (
+                  <span className="bg-[#e11d48] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-2xs">
+                    {unreadNotifCount}
+                  </span>
+                )}
+              </button>
 
-          {/* Nearby Shelters */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveCitizenTab('shelters');
-              if (view !== 'Citizen') location.hash = 'citizen';
-            }}
-            className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeCitizenTab === 'shelters' && view === 'Citizen'
-                ? 'bg-[#eef4ff] text-[#2563eb]'
-                : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
-            }`}
-          >
-            <SheltersIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'shelters' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-            <span>Nearby Shelters</span>
-          </button>
+              {/* Nearby Shelters */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCitizenTab('shelters');
+                  if (view !== 'Citizen') location.hash = 'citizen';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeCitizenTab === 'shelters' && view === 'Citizen'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <SheltersIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'shelters' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Nearby Shelters</span>
+              </button>
 
-          {/* My Reports */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveCitizenTab('submissions');
-              if (view !== 'Citizen') location.hash = 'citizen';
-            }}
-            className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeCitizenTab === 'submissions' && view === 'Citizen'
-                ? 'bg-[#eef4ff] text-[#2563eb]'
-                : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
-            }`}
-          >
-            <ReportsIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'submissions' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-            <span>My Reports</span>
-          </button>
+              {/* My Reports */}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCitizenTab('submissions');
+                  if (view !== 'Citizen') location.hash = 'citizen';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeCitizenTab === 'submissions' && view === 'Citizen'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <ReportsIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'submissions' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>My Reports</span>
+              </button>
+            </>
+          )}
 
-          {/* Settings */}
+          {/* Officer Navigation Items (Operations [landing] & Relief only - no crew!) */}
+          {user?.role === 'officer' && (
+            <>
+              {/* Operations (Landing Page) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setView('Operations');
+                  location.hash = 'operations';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  view === 'Operations'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <OperationsIcon className={`w-5 h-5 shrink-0 ${view === 'Operations' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Operations</span>
+              </button>
+
+              {/* Relief */}
+              <button
+                type="button"
+                onClick={() => {
+                  setView('Relief');
+                  location.hash = 'relief';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  view === 'Relief'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <ReliefIcon className={`w-5 h-5 shrink-0 ${view === 'Relief' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Relief</span>
+              </button>
+            </>
+          )}
+
+          {/* Crew Navigation Items */}
+          {user?.role === 'crew' && (
+            <button
+              type="button"
+              onClick={() => {
+                setView('Crew');
+                location.hash = 'crew';
+              }}
+              className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                view === 'Crew'
+                  ? 'bg-[#eef4ff] text-[#2563eb]'
+                  : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+              }`}
+            >
+              <CrewIcon className={`w-5 h-5 shrink-0 ${view === 'Crew' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+              <span>Work Orders</span>
+            </button>
+          )}
+
+          {/* Relief Role Navigation Items */}
+          {user?.role === 'relief' && (
+            <button
+              type="button"
+              onClick={() => {
+                setView('Relief');
+                location.hash = 'relief';
+              }}
+              className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                view === 'Relief'
+                  ? 'bg-[#eef4ff] text-[#2563eb]'
+                  : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+              }`}
+            >
+              <ReliefIcon className={`w-5 h-5 shrink-0 ${view === 'Relief' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+              <span>Relief Desk</span>
+            </button>
+          )}
+
+          {/* Admin Navigation Items */}
+          {user?.role === 'admin' && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setView('Operations');
+                  location.hash = 'operations';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  view === 'Operations'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <OperationsIcon className={`w-5 h-5 shrink-0 ${view === 'Operations' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Operations</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setView('Crew');
+                  location.hash = 'crew';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  view === 'Crew'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <CrewIcon className={`w-5 h-5 shrink-0 ${view === 'Crew' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Crew</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setView('Relief');
+                  location.hash = 'relief';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  view === 'Relief'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <ReliefIcon className={`w-5 h-5 shrink-0 ${view === 'Relief' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Relief</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setView('Admin');
+                  location.hash = 'admin';
+                }}
+                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  view === 'Admin'
+                    ? 'bg-[#eef4ff] text-[#2563eb]'
+                    : 'text-slate-800 hover:bg-slate-50 hover:text-slate-950'
+                }`}
+              >
+                <AdminIcon className={`w-5 h-5 shrink-0 ${view === 'Admin' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
+                <span>Admin Console</span>
+              </button>
+            </>
+          )}
+
+          {/* Settings button for all authenticated roles */}
           <button
             type="button"
             onClick={() => {
@@ -421,21 +605,39 @@ function App() {
         {/* Top Header Bar */}
         <header className="border-b border-slate-200/80 bg-white sticky top-0 z-30 shadow-2xs">
           <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-            {/* Centered Search Pill */}
-            <div className="flex-1 max-w-lg">
-              <div className="relative w-full">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 text-xs">
-                  🔍
-                </span>
-                <input
-                  type="text"
-                  placeholder="Search location, shelters, or hazards..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-100/90 border border-slate-200 rounded-full pl-10 pr-4 py-2 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all"
-                />
+            {user?.role === 'citizen' ? (
+              /* Centered Search Pill (Citizen view only) */
+              <div className="flex-1 max-w-lg">
+                <div className="relative w-full">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 text-xs">
+                    🔍
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search location, shelters, or hazards..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-100/90 border border-slate-200 rounded-full pl-10 pr-4 py-2 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all"
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Workspace Title Pill for Staff Roles */
+              <div className="flex items-center gap-2.5">
+                <span className="font-extrabold text-sm text-slate-800 tracking-tight">
+                  {view === 'Operations'
+                    ? 'Operations Incident Desk'
+                    : view === 'Relief'
+                    ? 'Relief Coordination Desk'
+                    : view === 'Crew'
+                    ? 'Field Crew Work Orders'
+                    : `${view} Workspace`}
+                </span>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 uppercase border border-slate-200/60">
+                  {user?.role} role
+                </span>
+              </div>
+            )}
 
             {/* Right Controls */}
             <div className="flex items-center gap-3 shrink-0">
@@ -464,23 +666,25 @@ function App() {
                 </button>
               </div>
 
-              {/* Notification Bell with Red Badge */}
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveCitizenTab('alerts');
-                  if (view !== 'Citizen') location.hash = 'citizen';
-                }}
-                className="relative p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
-                title={`${unreadNotifCount} unread alerts`}
-              >
-                <span className="text-base leading-none">🔔</span>
-                {unreadNotifCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
-                    {unreadNotifCount}
-                  </span>
-                )}
-              </button>
+              {/* Notification Bell with Red Badge (Citizen only) */}
+              {user?.role === 'citizen' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCitizenTab('alerts');
+                    if (view !== 'Citizen') location.hash = 'citizen';
+                  }}
+                  className="relative p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                  title={`${unreadNotifCount} unread alerts`}
+                >
+                  <span className="text-base leading-none">🔔</span>
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                      {unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+              )}
 
               {/* User Profile Pill & Dropdown */}
               <div className="relative">
@@ -529,36 +733,7 @@ function App() {
           </div>
         </header>
 
-        {/* Staff Workspace Switcher (if user has access to multiple roles) */}
-        {user && availableViews.length > 1 && (
-          <div className="bg-white border-b border-slate-200/60 px-6 py-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                  Authorized Workspace:
-                </span>
-                <div className="flex gap-1">
-                  {availableViews.map(name => (
-                    <a
-                      key={name}
-                      href={`#${name.toLowerCase()}`}
-                      className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                        view === name
-                          ? 'bg-slate-800 text-white shadow-2xs'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {name}
-                    </a>
-                  ))}
-                </div>
-              </div>
-              <span className="text-slate-400 text-[11px] hidden sm:inline">
-                Role-enforced backend access
-              </span>
-            </div>
-          </div>
-        )}
+
 
         {/* Main Workspace Body */}
         <main id="main" className="flex-1 p-4 sm:p-6 w-full max-w-7xl mx-auto">
