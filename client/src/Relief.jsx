@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { request } from './api.js';
 
 export default function Relief({ lang = 'en', t = {} }) {
@@ -13,27 +13,41 @@ export default function Relief({ lang = 'en', t = {} }) {
   const [actionMessage, setActionMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // RC-08 + RC-09: Mounted guard and in-flight fetch lock
+  const mountedRef = useRef(true);
+  const fetchingRef = useRef(false);
+
   async function loadData() {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     try {
       const [shelterRes, reportRes, feedRes] = await Promise.all([
         request('/api/relief/shelters'),
         request('/api/reports?kind=help&limit=50'),
         request('/api/feed/status'),
       ]);
+      if (!mountedRef.current) return;
       setShelters(shelterRes.shelters || []);
       setHelpReports(reportRes.reports || []);
       setFeedStatus(feedRes);
     } catch (err) {
       console.error('Failed to load relief data:', err);
     } finally {
-      setLoading(false);
+      fetchingRef.current = false;
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
+    mountedRef.current = true;
     loadData();
     const interval = setInterval(loadData, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(interval);
+    };
   }, []);
 
   async function changeFeedStage(targetStage) {

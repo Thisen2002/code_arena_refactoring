@@ -232,8 +232,13 @@ export default function Citizen({
     }
   }
 
-  // 10s Resilient Polling for All Live Data
+  // RC-06 + RC-07: Resilient Polling for All Live Data with unmount & concurrency guards
+  const mountedRef = useRef(true);
+  const isPollingRef = useRef(false);
+
   async function pollAll() {
+    if (isPollingRef.current) return;
+    isPollingRef.current = true;
     try {
       const [alertRes, incRes, notifRes, shelterRes, repRes, feedRes] = await Promise.allSettled([
         request('/api/alerts'),
@@ -243,6 +248,8 @@ export default function Citizen({
         request('/api/reports?limit=50'),
         request('/api/feed/status'),
       ]);
+
+      if (!mountedRef.current) return;
 
       if (alertRes.status === 'fulfilled') setAlerts(alertRes.value.alerts || []);
 
@@ -271,20 +278,27 @@ export default function Citizen({
       if (shelterRes.status === 'fulfilled') setShelters(shelterRes.value.shelters || []);
       if (repRes.status === 'fulfilled') setReports(repRes.value.reports || []);
       if (feedRes.status === 'fulfilled') setFeedStatus(feedRes.value);
-    } catch { }
+    } catch { } finally {
+      isPollingRef.current = false;
+    }
   }
 
   useEffect(() => {
+    mountedRef.current = true;
     pollAll();
     request('/api/user/saved-location')
       .then(data => {
+        if (!mountedRef.current) return;
         if (data.savedLocation) setSavedLoc(prev => ({ ...prev, ...data.savedLocation }));
         if (data.availableWards) setAvailableWards(data.availableWards);
       })
       .catch(() => { });
 
     const interval = setInterval(pollAll, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(interval);
+    };
   }, [refresh]);
 
   async function handleSaveLocation(e) {
@@ -298,7 +312,7 @@ export default function Citizen({
       });
       if (res.savedLocation) setSavedLoc(res.savedLocation);
       setLocFeedback({ success: true, text: res.message || 'Preferences saved.' });
-      pollAll();
+      setRefresh(r => r + 1);
     } catch (err) {
       setLocFeedback({ error: true, text: err.message || 'Failed to save location preferences.' });
     } finally {

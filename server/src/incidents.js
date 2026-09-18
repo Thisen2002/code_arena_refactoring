@@ -309,33 +309,50 @@ export function incidentsRouter({ incidents = Incident, reports = Report, storag
     const parsed = respondClarificationSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'Choose a valid response choice.' });
 
-    const incident = await incidents.findById(req.params.id);
-    if (!incident) return res.status(404).json({ error: 'Incident not found.' });
-
-    const clar = incident.clarifications.id(req.params.cid);
-    if (!clar) return res.status(404).json({ error: 'Clarification request not found.' });
-
-    if (clar.status !== 'active') {
-      return res.status(409).json({ error: 'This clarification inquiry is no longer active.' });
+    // Verify incident exists first (for a meaningful 404)
+    if (!await incidents.exists({ _id: req.params.id })) {
+      return res.status(404).json({ error: 'Incident not found.' });
     }
 
-    const alreadyResponded = (clar.responses || []).some(
-      r => String(r.citizenId) === String(req.user._id)
-    );
-    if (alreadyResponded) {
-      return res.status(409).json({ error: 'You have already submitted a response for this inquiry.' });
-    }
-
-    clar.responses.push({
+    const response = {
       citizenId: req.user._id,
       citizenName: req.user.username,
       responseChoice: parsed.data.responseChoice,
       comment: parsed.data.comment || '',
       at: new Date(),
-    });
-    await incident.save();
+    };
 
-    res.json({ incident: incidentDto(incident) });
+    // RC-04: Atomically push the response only when:
+    //  - the clarification subdoc exists with status 'active'
+    //  - the citizen is NOT already in the responses array
+    // This $elemMatch filter + $push is evaluated as a single atomic MongoDB operation,
+    // eliminating the TOCTOU gap between the memory-based alreadyResponded check and push.
+    const updated = await incidents.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        clarifications: {
+          $elemMatch: {
+            _id: req.params.cid,
+            status: 'active',
+            'responses.citizenId': { $ne: req.user._id },
+          },
+        },
+      },
+      { $push: { 'clarifications.$.responses': response } },
+      { new: true }
+    );
+
+    if (!updated) {
+      // Distinguish between: clarification not found, not active, or already responded
+      const inc = await incidents.findById(req.params.id).lean();
+      if (!inc) return res.status(404).json({ error: 'Incident not found.' });
+      const clar = inc.clarifications?.find(c => String(c._id) === req.params.cid);
+      if (!clar) return res.status(404).json({ error: 'Clarification request not found.' });
+      if (clar.status !== 'active') return res.status(409).json({ error: 'This clarification inquiry is no longer active.' });
+      return res.status(409).json({ error: 'You have already submitted a response for this inquiry.' });
+    }
+
+    res.json({ incident: incidentDto(updated) });
   });
 
   // 7. Crew closure with photo upload (Crew / Admin)
@@ -346,6 +363,7 @@ export function incidentsRouter({ incidents = Incident, reports = Report, storag
     if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.status(404).json({ error: 'Incident not found.' });
     if (!req.file) return res.status(400).json({ error: 'A physical resolution photo is mandatory for crew closure.' });
 
+    // Read the incident for authorization checks only (not for the final save)
     const incident = await incidents.findById(req.params.id);
     if (!incident) return res.status(404).json({ error: 'Incident not found.' });
 
@@ -357,6 +375,7 @@ export function incidentsRouter({ incidents = Incident, reports = Report, storag
       return res.status(409).json({ error: 'This incident is already closed.' });
     }
 
+    // Upload photo first — before taking the atomic lock so we can clean up on failure
     const photoMeta = await inspectImage(req.file.buffer);
     const fileId = await storage.save(req.file.buffer, {
       ...photoMeta,
@@ -364,36 +383,58 @@ export function incidentsRouter({ incidents = Incident, reports = Report, storag
       submissionKey: `closure-${incident._id}-${Date.now()}`,
     });
 
-    incident.status = 'closed';
-    incident.isRoadClosed = false; // Re-open road upon verified closure!
-    incident.closure = {
-      closedBy: req.user._id,
-      closedAt: new Date(),
-      notes: req.body?.notes || 'Hazard rectified on site.',
-      photo: { ...photoMeta, fileId },
-    };
-    incident.history.push({
-      action: 'closed_by_crew',
-      actorId: req.user._id,
-      actorRole: req.user.role,
-      at: new Date(),
-      details: { notes: incident.closure.notes },
-    });
-    await incident.save();
+    const closedAt = new Date();
+    const closureNotes = req.body?.notes || 'Hazard rectified on site.';
+
+    // RC-03: Atomically close the incident only if it is NOT already closed.
+    // status: { $ne: 'closed' } is the compare-and-swap guard that prevents
+    // two concurrent closure requests from both succeeding.
+    const closed = await incidents.findOneAndUpdate(
+      { _id: incident._id, status: { $ne: 'closed' } },
+      {
+        $set: {
+          status: 'closed',
+          isRoadClosed: false,
+          closure: {
+            closedBy: req.user._id,
+            closedAt,
+            notes: closureNotes,
+            photo: { ...photoMeta, fileId },
+          },
+        },
+        $push: {
+          history: {
+            action: 'closed_by_crew',
+            actorId: req.user._id,
+            actorRole: req.user.role,
+            at: closedAt,
+            details: { notes: closureNotes },
+          },
+        },
+      },
+      { new: true }
+    );
+
+    if (!closed) {
+      // A concurrent request closed the incident while we were uploading the photo.
+      // Delete the now-orphan GridFS file to prevent storage leaks.
+      await storage.remove(fileId).catch(() => {});
+      return res.status(409).json({ error: 'This incident was already closed by another request.' });
+    }
 
     // Mark all linked citizen reports as resolved!
     await reports.updateMany(
-      { _id: { $in: incident.reportIds } },
+      { _id: { $in: closed.reportIds } },
       {
         $set: { status: 'resolved' },
-        $push: { history: { action: 'resolved_by_crew', actorId: req.user._id, at: new Date() } },
+        $push: { history: { action: 'resolved_by_crew', actorId: req.user._id, at: closedAt } },
       }
     );
 
     // Notify nearby citizens that hazard is cleared and road corridor is re-opened
-    notifyNearbyCitizensOnIncidentResolved(incident).catch(() => {});
+    notifyNearbyCitizensOnIncidentResolved(closed).catch(() => {});
 
-    res.json({ incident: incidentDto(incident) });
+    res.json({ incident: incidentDto(closed) });
   });
 
   // 8. Stream closure photo

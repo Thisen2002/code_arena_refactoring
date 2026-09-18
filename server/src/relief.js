@@ -41,74 +41,98 @@ export function reliefRouter({ requireAuth, requireRole } = {}) {
 
       const count = Math.max(1, parseInt(partySize, 10) || 1);
 
-      // Verify report
-      const report = await Report.findById(reportId);
-      if (!report) {
-        return res.status(404).json({ error: 'Help report not found.' });
-      }
-
-      if (report.kind !== 'help') {
-        return res.status(400).json({ error: 'Only help requests can be assigned to relief shelters.' });
-      }
-
-      if (report.reliefAssignment?.status === 'assigned') {
-        return res.status(409).json({ error: `This help request is already allocated to ${report.reliefAssignment.shelterName}.` });
-      }
-
-      // Verify shelter
-      const shelter = await Shelter.findById(shelterId);
-      if (!shelter) {
-        return res.status(404).json({ error: 'Shelter not found.' });
-      }
-
-      if (shelter.status === 'closed') {
+      // Verify shelter exists and is open before taking the lock
+      const shelterCheck = await Shelter.findById(shelterId).lean();
+      if (!shelterCheck) return res.status(404).json({ error: 'Shelter not found.' });
+      if (shelterCheck.status === 'closed') {
         return res.status(409).json({ error: 'Selected shelter is currently closed.' });
       }
 
-      // Capacity check
-      if (shelter.currentOccupancy + count > shelter.maxCapacity) {
+      // RC-02: Atomically mark the report as assigned only if it is NOT already assigned.
+      // The query filter 'reliefAssignment.status': { $ne: 'assigned' } acts as a
+      // compare-and-swap — only one concurrent request can win this update.
+      const now = new Date();
+      const updatedReport = await Report.findOneAndUpdate(
+        {
+          _id: reportId,
+          kind: 'help',
+          'reliefAssignment.status': { $ne: 'assigned' },
+        },
+        {
+          $set: {
+            reliefAssignment: {
+              shelterId,
+              shelterName: shelterCheck.name,
+              assignedAt: now,
+              assignedBy: req.user?._id,
+              partySize: count,
+              status: 'assigned',
+              notes: String(notes).trim(),
+            },
+          },
+          $push: { history: { action: 'shelter_assigned', actorId: req.user?._id, at: now } },
+        },
+        { new: true }
+      );
+
+      if (!updatedReport) {
+        // Either report not found, wrong kind, or already assigned by a concurrent request
+        const existing = await Report.findById(reportId).lean();
+        if (!existing) return res.status(404).json({ error: 'Help report not found.' });
+        if (existing.kind !== 'help') return res.status(400).json({ error: 'Only help requests can be assigned to relief shelters.' });
         return res.status(409).json({
-          error: `Shelter capacity exceeded. ${shelter.name} has only ${Math.max(0, shelter.maxCapacity - shelter.currentOccupancy)} spaces remaining (requested ${count}).`,
+          error: `This help request is already allocated to ${existing.reliefAssignment?.shelterName || 'a shelter'}.`,
         });
       }
 
-      // Update shelter occupancy
-      shelter.currentOccupancy += count;
-      if (shelter.currentOccupancy >= shelter.maxCapacity) {
-        shelter.status = 'full';
-      } else if (shelter.currentOccupancy / shelter.maxCapacity >= 0.85) {
-        shelter.status = 'near_capacity';
-      }
-      await shelter.save();
+      // RC-01: Atomically increment shelter occupancy only if the new total will not
+      // exceed maxCapacity. The $expr filter enforces the cap inside MongoDB — no
+      // application-level read-check-write gap.
+      const updatedShelter = await Shelter.findOneAndUpdate(
+        {
+          _id: shelterId,
+          status: { $ne: 'closed' },
+          $expr: { $lte: [{ $add: ['$currentOccupancy', count] }, '$maxCapacity'] },
+        },
+        { $inc: { currentOccupancy: count } },
+        { new: true }
+      );
 
-      // Update report relief assignment
-      report.reliefAssignment = {
-        shelterId: shelter._id,
-        shelterName: shelter.name,
-        assignedAt: new Date(),
-        assignedBy: req.user?._id,
-        partySize: count,
-        status: 'assigned',
-        notes: String(notes).trim(),
-      };
-      report.history.push({
-        action: 'shelter_assigned',
-        actorId: req.user?._id,
-        at: new Date(),
-      });
-      await report.save();
+      if (!updatedShelter) {
+        // Shelter became full between our check and this write — roll back the report assignment
+        await Report.findByIdAndUpdate(reportId, {
+          $unset: { reliefAssignment: '' },
+          $push: { history: { action: 'shelter_assignment_rolled_back', actorId: req.user?._id, at: new Date() } },
+        });
+        return res.status(409).json({
+          error: `Shelter capacity exceeded. Requested ${count} spaces but the shelter has no room. Please choose another shelter.`,
+        });
+      }
+
+      // Reflect status after the atomic increment
+      const newOccupancy = updatedShelter.currentOccupancy;
+      const newMaxCapacity = updatedShelter.maxCapacity;
+      const statusUpdate =
+        newOccupancy >= newMaxCapacity ? 'full'
+        : newOccupancy / newMaxCapacity >= 0.85 ? 'near_capacity'
+        : updatedShelter.status;
+
+      if (statusUpdate !== updatedShelter.status) {
+        updatedShelter.status = statusUpdate;
+        await updatedShelter.save();
+      }
 
       res.json({
         success: true,
-        report,
+        report: updatedReport,
         shelter: {
-          ...shelter.toObject(),
-          occupancyPercentage: Math.round((shelter.currentOccupancy / shelter.maxCapacity) * 100),
-          remainingCapacity: Math.max(0, shelter.maxCapacity - shelter.currentOccupancy),
+          ...updatedShelter.toObject(),
+          occupancyPercentage: Math.round((newOccupancy / newMaxCapacity) * 100),
+          remainingCapacity: Math.max(0, newMaxCapacity - newOccupancy),
         },
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+    } catch {
+      res.status(500).json({ error: 'Unable to complete shelter assignment. Please try again.' });
     }
   });
 

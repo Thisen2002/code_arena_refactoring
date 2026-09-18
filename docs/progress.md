@@ -1,4 +1,13 @@
-# Verified progress — 12 September 2026
+# Verified progress — 18 September 2026
+
+## Concurrency Hardening & Race Condition Resolution
+Implemented and verified in the actual local clone:
+- **RC-01 + RC-02 (Shelter Allocation Concurrency)** (`server/src/relief.js`): Replaced TOCTOU read-check-write pattern with atomic `findOneAndUpdate` queries for both double-assignment and capacity checks. Capacity is enforced atomically in MongoDB using `$expr: { $lte: [{ $add: ['$currentOccupancy', count] }, '$maxCapacity'] }`.
+- **RC-03 (Incident Crew Closure)** (`server/src/incidents.js`): Replaced memory check and `save()` with atomic `findOneAndUpdate({ status: { $ne: 'closed' } })`. Concurrent close attempts receive HTTP 409 and clean up newly uploaded GridFS photos to prevent storage leaks.
+- **RC-04 (Clarification Response Deduping)** (`server/src/incidents.js`): Atomic `$elemMatch` guard in `findOneAndUpdate` ensures multiple simultaneous submissions from the same citizen only append once.
+- **RC-06 + RC-07 (Citizen Polling & Navigation)** (`client/src/Citizen.jsx`): Mounted ref guards prevent state updates after unmount; in-flight polling lock (`isPollingRef`) avoids duplicate parallel polling requests; preferences save triggers state refresh instead of concurrent ad-hoc poll.
+- **RC-08 + RC-09 (Relief Polling & Action Overlap)** (`client/src/Relief.jsx`): Added `mountedRef` guard and concurrency lock (`fetchingRef`) to prevent overlapping `loadData` cycles from clobbering UI state.
+- **Verification**: `npm test` **37/37 PASSED**; `npm run build` **PASSED** with 0 errors.
 
 ## Milestone 8 — pitch deck, demo script & scenario verification
 Implemented and verified in the actual local clone:
