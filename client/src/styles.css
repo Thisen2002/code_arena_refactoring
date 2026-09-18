@@ -146,7 +146,7 @@ label {
   color: #1c3b35;
 }
 
-input:not([type="checkbox"]):not([type="radio"]), textarea, select {
+input, textarea, select {
   display: block;
   width: 100%;
   margin-top: 6px;
@@ -159,7 +159,7 @@ input:not([type="checkbox"]):not([type="radio"]), textarea, select {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:focus {
+input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: #0d9488;
   box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
@@ -255,18 +255,52 @@ input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus, select:f
 }
 
 .map-section {
-  margin-top: 20px;
-  border: 1px solid #dce5e1;
-  border-radius: 12px;
+  position: relative;
+  margin-top: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .report-map {
-  height: 310px;
+  height: 420px;
   width: 100%;
   background: #e5ece8;
   z-index: 0;
+}
+
+/* Floating Map Legend */
+.map-legend-card {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(6px);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  pointer-events: auto;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2.5px 0;
+}
+
+.map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .report-row {
@@ -297,11 +331,34 @@ fieldset {
   min-width: 0;
 }
 
+/* Custom Marker Styling */
+.custom-map-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: 2px solid #ffffff;
+  transition: transform 0.15s ease;
+}
+.custom-map-marker:hover {
+  transform: scale(1.15);
+}
+
+@media (max-width: 768px) {
+  .report-map {
+    height: 320px;
+  }
+}
+
 @media (max-width: 480px) {
   .report-row {
     grid-template-columns: minmax(0, 1fr);
   }
   .report-map {
-    height: 250px;
+    height: 260px;
   }
 }
+
