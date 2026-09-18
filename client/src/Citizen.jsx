@@ -55,8 +55,8 @@ export default function Citizen({
   const [showReportModal, setShowReportModal] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(null);
   const [form, setForm] = useState(initialForm);
-  const [photo, setPhoto] = useState(null);
-  const [preview, setPreview] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [previews, setPreviews] = useState([]);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState(null);
@@ -108,14 +108,14 @@ export default function Citizen({
   const [locFeedback, setLocFeedback] = useState(null);
 
   useEffect(() => {
-    if (!photo) {
-      setPreview('');
+    if (photos.length === 0) {
+      setPreviews([]);
       return;
     }
-    const url = URL.createObjectURL(photo);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
+    const urls = photos.map(p => URL.createObjectURL(p));
+    setPreviews(urls);
+    return () => urls.forEach(u => URL.revokeObjectURL(u));
+  }, [photos]);
 
   const lat = Number(form.latitude);
   const lon = Number(form.longitude);
@@ -183,10 +183,10 @@ export default function Citizen({
     if (saving) return;
     setMessage(null);
 
-    if (!photo || form.description.trim().length < 10 || !form.latitude.trim() || !form.longitude.trim()) {
+    if (photos.length === 0 || form.description.trim().length < 10 || !form.latitude.trim() || !form.longitude.trim()) {
       setMessage({
         error: true,
-        text: 'Add a photo (JPEG/PNG/WebP), a description of at least 10 characters, and coordinates.',
+        text: 'Add at least one photo (JPEG/PNG/WebP), a description of at least 10 characters, and coordinates.',
       });
       return;
     }
@@ -204,7 +204,7 @@ export default function Citizen({
     if (form.locationSource === 'device') data.gpsAccuracy = form.gpsAccuracy;
 
     body.append('report', JSON.stringify(data));
-    body.append('photo', photo);
+    photos.forEach(p => body.append('photos', p));
 
     setSaving(true);
     try {
@@ -212,7 +212,7 @@ export default function Citizen({
       setShowReportModal(false);
       setMessage(null);
       setForm(initialForm());
-      setPhoto(null);
+      setPhotos([]);
       if (fileInput.current) fileInput.current.value = '';
       key.current = crypto.randomUUID();
       setGpsMessage('');
@@ -1043,34 +1043,49 @@ export default function Citizen({
                 {/* Photo Upload */}
                 <div>
                   <label htmlFor="modal-photo" className="block font-semibold text-slate-700 mb-1">
-                    Mandatory Photo Proof (JPEG / PNG / WebP, max 5 MiB)
+                    Mandatory Photo Proof (JPEG / PNG / WebP, up to 3 photos, max 5 MiB each)
                   </label>
                   <input
                     ref={fileInput}
                     id="modal-photo"
                     type="file"
+                    multiple
                     accept="image/jpeg,image/png,image/webp"
                     required
                     onChange={e => {
-                      const file = e.target.files[0];
-                      if (file && file.size > 5 * 1024 * 1024) {
-                        setMessage({ error: true, text: 'Choose a photo no larger than 5 MiB.' });
+                      const files = Array.from(e.target.files);
+                      if (files.length > 3) {
+                        setMessage({ error: true, text: 'You can upload a maximum of 3 photos.' });
                         e.target.value = '';
-                        setPhoto(null);
+                        setPhotos([]);
                         return;
                       }
-                      setPhoto(file || null);
+                      for (const file of files) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          setMessage({ error: true, text: 'Each photo must be no larger than 5 MiB.' });
+                          e.target.value = '';
+                          setPhotos([]);
+                          return;
+                        }
+                      }
+                      setPhotos(files);
                       key.current = crypto.randomUUID();
                       setMessage(null);
                     }}
                     className="w-full p-2 border border-slate-300 rounded-lg text-xs"
                   />
-                  {preview && (
-                    <img
-                      src={preview}
-                      alt="Uploaded preview"
-                      className="mt-2 h-32 w-auto object-cover rounded-lg border border-slate-200"
-                    />
+                  <p className="text-[10px] text-slate-500 mt-1">The first photo is prioritized for AI analysis.</p>
+                  {previews.length > 0 && (
+                    <div className="flex gap-3 mt-3 overflow-x-auto pb-2">
+                      {previews.map((src, i) => (
+                        <img
+                          key={i}
+                          src={src}
+                          alt={`Uploaded preview ${i + 1}`}
+                          className="h-24 w-24 object-cover shrink-0 rounded-lg border border-slate-200 shadow-sm"
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
 
