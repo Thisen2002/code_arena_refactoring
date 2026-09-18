@@ -92,9 +92,14 @@ export function reportsRouter({ reports = Report, storage = evidenceStore() } = 
   router.get('/', async (req, res) => {
     const parsed = listInput.safeParse(req.query);
     if (!parsed.success) return res.status(400).json({ error: 'Use limit 1–100, offset 0–100000, and optional kind hazard/help.' });
-    const { limit, offset, kind } = parsed.data;
+    const { limit, offset, kind, statusGroup } = parsed.data;
     const scope = reportScope(req.user);
-    const filter = kind ? { $and: [scope, { kind }] } : scope;
+    const filterParts = [];
+    if (scope) filterParts.push(scope);
+    if (kind) filterParts.push({ kind });
+    if (statusGroup === 'resolved') filterParts.push({ status: 'resolved' });
+    else if (statusGroup === 'active') filterParts.push({ status: { $ne: 'resolved' } });
+    const filter = filterParts.length > 0 ? { $and: filterParts } : {};
     const rows = await reports.find(filter).sort({ createdAt: -1, _id: -1 }).skip(offset).limit(limit + 1).lean();
     res.json({ reports: rows.slice(0, limit).map(reportDto), hasMore: rows.length > limit, limit, offset });
   });

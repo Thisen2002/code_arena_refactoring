@@ -17,4 +17,5 @@ export const listInput = z.object({
   limit: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(100)).default(50),
   offset: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(0).max(100000)).default(0),
   kind: z.enum(['hazard', 'help']).optional(),
+  statusGroup: z.enum(['resolved', 'active']).optional(),
 }).strict();

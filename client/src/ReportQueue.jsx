@@ -9,6 +9,7 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
   const [offset, setOffset] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const [kind, setKind] = useState(helpOnly ? 'help' : '');
+  const [statusGroup, setStatusGroup] = useState('');
   const [selectedReport, setSelectedReport] = useState(null);
 
   useEffect(() => { setOffset(0); }, [refreshKey]);
@@ -20,7 +21,7 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
       running = true;
       if (initial) setState(s => ({ ...s, loading: true, error: '' }));
       try {
-        const data = await request(`/api/reports?limit=20&offset=${offset}${kind ? `&kind=${kind}` : ''}`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
+        const data = await request(`/api/reports?limit=20&offset=${offset}${kind ? `&kind=${kind}` : ''}${statusGroup ? `&statusGroup=${statusGroup}` : ''}`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
         if (active) setState({ ...data, loading: false, error: '' });
       } catch (error) { if (active) setState({ reports: [], loading: false, error: error.message, hasMore: false }); }
       finally { running = false; }
@@ -28,7 +29,7 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
     load(true);
     const timer = setInterval(() => { if (!document.hidden) load(); }, 10000);
     return () => { active = false; controller.abort(); clearInterval(timer); };
-  }, [offset, refresh, refreshKey, kind]);
+  }, [offset, refresh, refreshKey, kind, statusGroup]);
 
   const [showMap, setShowMap] = useState(true);
 
@@ -89,31 +90,59 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
     </div>
 
     {/* Quick Category Filter Tabs */}
-    {!helpOnly && (
-      <div className="flex flex-wrap gap-2 mt-4 border-b border-slate-200 pb-3" role="tablist" aria-label="Report filter categories">
-        {[
-          { id: '', label: lang === 'si' ? 'සියලු වාර්තා' : 'All Submissions', icon: '📋' },
-          { id: 'hazard', label: lang === 'si' ? 'ආපදා පමණි' : 'Hazards Only', icon: '⚠️' },
-          { id: 'help', label: lang === 'si' ? 'ආධාර ඉල්ලීම් පමණි' : 'Help Requests Only', icon: '🆘' },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={kind === tab.id}
-            onClick={() => { setKind(tab.id); setOffset(0); }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              kind === tab.id
-                ? 'bg-[#174b3c] text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-    )}
+    <div className="flex flex-col sm:flex-row gap-4 mt-4 border-b border-slate-200 pb-3">
+      {!helpOnly && (
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Report filter categories">
+          {[
+            { id: '', label: lang === 'si' ? 'සියලු වාර්තා' : 'All Submissions', icon: '📋' },
+            { id: 'hazard', label: lang === 'si' ? 'ආපදා පමණි' : 'Hazards Only', icon: '⚠️' },
+            { id: 'help', label: lang === 'si' ? 'ආධාර ඉල්ලීම් පමණි' : 'Help Requests Only', icon: '🆘' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={kind === tab.id}
+              onClick={() => { setKind(tab.id); setOffset(0); }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                kind === tab.id
+                  ? 'bg-[#174b3c] text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Status Filter Tabs (Only for Operations/Admin view) */}
+      {!own && (
+        <div className="flex flex-wrap gap-2 border-l-0 sm:border-l border-slate-200 sm:pl-4" role="tablist" aria-label="Status filters">
+          {[
+            { id: '', label: lang === 'si' ? 'සියලු තත්වයන්' : 'All Statuses' },
+            { id: 'active', label: lang === 'si' ? 'සක්‍රිය' : 'Active (Unresolved)' },
+            { id: 'resolved', label: lang === 'si' ? 'විසඳා ඇත' : 'Resolved' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={statusGroup === tab.id}
+              onClick={() => { setStatusGroup(tab.id); setOffset(0); }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusGroup === tab.id
+                  ? 'bg-[#174b3c] text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
 
     {state.loading ? <p role="status" className="py-8">{own ? 'Loading your submissions…' : 'Loading reports…'}</p> : state.error ? <p role="alert" className="notice error mt-5">{state.error}</p> : <>
       {showMap && <ReportMap reports={state.reports} label={own ? 'Private map of your reports on this page' : 'Private queue map of reports on this page'} />}
