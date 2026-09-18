@@ -10,6 +10,8 @@ if (clientDirectory && !existsSync(`${clientDirectory}/index.html`)) {
   process.exit(1);
 }
 const server = createApp({ databaseConfigured: Boolean(config.mongodbUri), clientDirectory }).listen(config.port, config.host);
+server.timeout = 180000;
+server.requestTimeout = 180000;
 server.once('listening', () => {
   console.log(`Server listening on port ${config.port}.`);
 });

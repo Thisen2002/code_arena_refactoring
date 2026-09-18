@@ -53,7 +53,7 @@ async function run() {
     }).png().toBuffer();
 
     const form = new FormData();
-    form.append('photo', new Blob([imageBytes], { type: 'image/png' }), 'flood-sample.png');
+    form.append('photos', new Blob([imageBytes], { type: 'image/png' }), 'flood-sample.png');
     form.append('report', JSON.stringify({
       kind: 'hazard',
       description: 'Severe street flooding near Nagalagam gauge, water depth rising rapidly',
