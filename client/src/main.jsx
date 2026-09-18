@@ -115,7 +115,7 @@ function App() {
   const [reportModalTrigger, setReportModalTrigger] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [unreadNotifCount, setUnreadNotifCount] = useState(3);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const t = i18n[lang] || i18n.en;
 
@@ -257,10 +257,10 @@ function App() {
         />
       );
     }
-    if (view === 'Operations' && ['officer', 'admin'].includes(user.role)) return <ReportQueue title="Report inbox" />;
-    if (view === 'Crew' && ['crew', 'admin'].includes(user.role)) return <Crew />;
-    if (view === 'Relief' && ['relief', 'officer', 'admin'].includes(user.role)) return <Relief />;
-    if (view === 'Admin' && user.role === 'admin') return <Admin />;
+    if (view === 'Operations' && ['officer', 'admin'].includes(user.role)) return <ReportQueue title={t.operationsNav || "Report inbox"} user={user} lang={lang} t={t} />;
+    if (view === 'Crew' && ['crew', 'admin'].includes(user.role)) return <Crew lang={lang} t={t} />;
+    if (view === 'Relief' && ['relief', 'officer', 'admin'].includes(user.role)) return <Relief lang={lang} t={t} />;
+    if (view === 'Admin' && user.role === 'admin') return <Admin lang={lang} t={t} />;
     return (
       <section className="panel">
         <span className="badge">Access restricted</span>
@@ -335,7 +335,7 @@ function App() {
                 }`}
               >
                 <HomeIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'home' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Home</span>
+                <span>{t.navHome || 'Home'}</span>
               </button>
 
               {/* Report Hazard */}
@@ -348,7 +348,7 @@ function App() {
                 className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-all"
               >
                 <HazardIcon className="w-5 h-5 text-slate-800 shrink-0" />
-                <span>Report Hazard</span>
+                <span>{t.navReportHazard || 'Report Hazard'}</span>
               </button>
 
               {/* Request Help */}
@@ -361,7 +361,7 @@ function App() {
                 className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-all"
               >
                 <HelpIcon className="w-5 h-5 text-slate-800 shrink-0" />
-                <span>Request Help</span>
+                <span>{t.navRequestHelp || 'Request Help'}</span>
               </button>
 
               {/* Live Map */}
@@ -378,7 +378,7 @@ function App() {
                 }`}
               >
                 <LiveMapIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'routes' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Live Map</span>
+                <span>{t.navLiveMap || 'Live Map'}</span>
               </button>
 
               {/* Alerts */}
@@ -396,7 +396,7 @@ function App() {
               >
                 <div className="flex items-center gap-3.5">
                   <AlertsIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'alerts' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                  <span>Alerts</span>
+                  <span>{t.navAlerts || 'Alerts'}</span>
                 </div>
                 {unreadNotifCount > 0 && (
                   <span className="bg-[#e11d48] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 shadow-2xs">
@@ -419,7 +419,7 @@ function App() {
                 }`}
               >
                 <SheltersIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'shelters' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Nearby Shelters</span>
+                <span>{t.navNearbyShelters || 'Nearby Shelters'}</span>
               </button>
 
               {/* My Reports */}
@@ -436,7 +436,7 @@ function App() {
                 }`}
               >
                 <ReportsIcon className={`w-5 h-5 shrink-0 ${activeCitizenTab === 'submissions' && view === 'Citizen' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>My Reports</span>
+                <span>{t.navMyReports || 'My Reports'}</span>
               </button>
             </>
           )}
@@ -458,7 +458,7 @@ function App() {
                 }`}
               >
                 <OperationsIcon className={`w-5 h-5 shrink-0 ${view === 'Operations' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Operations</span>
+                <span>{t.operationsNav || 'Operations'}</span>
               </button>
 
               {/* Relief */}
@@ -475,7 +475,7 @@ function App() {
                 }`}
               >
                 <ReliefIcon className={`w-5 h-5 shrink-0 ${view === 'Relief' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Relief</span>
+                <span>{t.reliefNav || 'Relief'}</span>
               </button>
             </>
           )}
@@ -495,7 +495,7 @@ function App() {
               }`}
             >
               <CrewIcon className={`w-5 h-5 shrink-0 ${view === 'Crew' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-              <span>Work Orders</span>
+              <span>{t.navWorkOrders || 'Work Orders'}</span>
             </button>
           )}
 
@@ -514,7 +514,7 @@ function App() {
               }`}
             >
               <ReliefIcon className={`w-5 h-5 shrink-0 ${view === 'Relief' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-              <span>Relief Desk</span>
+              <span>{t.navReliefDesk || 'Relief Desk'}</span>
             </button>
           )}
 
@@ -534,7 +534,7 @@ function App() {
                 }`}
               >
                 <OperationsIcon className={`w-5 h-5 shrink-0 ${view === 'Operations' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Operations</span>
+                <span>{t.operationsNav || 'Operations'}</span>
               </button>
 
               <button
@@ -550,7 +550,7 @@ function App() {
                 }`}
               >
                 <CrewIcon className={`w-5 h-5 shrink-0 ${view === 'Crew' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Crew</span>
+                <span>{t.crewNav || 'Crew'}</span>
               </button>
 
               <button
@@ -566,7 +566,7 @@ function App() {
                 }`}
               >
                 <ReliefIcon className={`w-5 h-5 shrink-0 ${view === 'Relief' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Relief</span>
+                <span>{t.reliefNav || 'Relief'}</span>
               </button>
 
               <button
@@ -582,7 +582,7 @@ function App() {
                 }`}
               >
                 <AdminIcon className={`w-5 h-5 shrink-0 ${view === 'Admin' ? 'text-[#2563eb]' : 'text-slate-800'}`} />
-                <span>Admin Console</span>
+                <span>{t.navAdminConsole || 'Admin Console'}</span>
               </button>
             </>
           )}
@@ -596,7 +596,7 @@ function App() {
             className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-all"
           >
             <SettingsIcon className="w-5 h-5 text-slate-800 shrink-0" />
-            <span>Settings</span>
+            <span>{t.navSettings || 'Settings'}</span>
           </button>
         </nav>
       </aside>
@@ -610,15 +610,19 @@ function App() {
               /* Centered Search Pill (Citizen view only) */
               <div className="flex-1 max-w-lg">
                 <div className="relative w-full">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 text-xs">
-                    🔍
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 pointer-events-none z-10">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
                   </span>
                   <input
                     type="text"
-                    placeholder="Search location, shelters, or hazards..."
+                    placeholder={t.searchPlaceholder || "Search location, shelters, or hazards..."}
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-100/90 border border-slate-200 rounded-full pl-10 pr-4 py-2 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all"
+                    className="w-full bg-slate-100/90 border border-slate-200 rounded-full pr-4 py-2 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all m-0"
+                    style={{ paddingLeft: '2.6rem', marginTop: 0 }}
                   />
                 </div>
               </div>
@@ -627,15 +631,17 @@ function App() {
               <div className="flex items-center gap-2.5">
                 <span className="font-extrabold text-sm text-slate-800 tracking-tight">
                   {view === 'Operations'
-                    ? 'Operations Incident Desk'
+                    ? (t.operationsWorkspace || 'Operations Incident Desk')
                     : view === 'Relief'
-                    ? 'Relief Coordination Desk'
+                    ? (t.reliefWorkspace || 'Relief Coordination Desk')
                     : view === 'Crew'
-                    ? 'Field Crew Work Orders'
+                    ? (t.crewWorkspace || 'Field Crew Work Orders')
+                    : view === 'Admin'
+                    ? (t.adminWorkspace || 'System Governance & Administration')
                     : `${view} Workspace`}
                 </span>
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 uppercase border border-slate-200/60">
-                  {user?.role} role
+                  {user?.role} {t.roleLabelSuffix || 'role'}
                 </span>
               </div>
             )}
@@ -697,7 +703,7 @@ function App() {
                   <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
                     👤
                   </div>
-                  <span className="hidden sm:inline">Hello, {displayName}</span>
+                  <span className="hidden sm:inline">{t.helloPrefix || 'Hello'}, {displayName}</span>
                   <span className="text-[10px] text-slate-400">▼</span>
                 </button>
 
@@ -705,7 +711,7 @@ function App() {
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
                     <div className="px-3 py-2 border-b border-slate-100">
                       <strong className="block text-slate-800 truncate">{user.fullName || user.username}</strong>
-                      <span className="text-slate-400 text-[10px] capitalize">{user.role} role</span>
+                      <span className="text-slate-400 text-[10px] capitalize">{user.role} {t.roleLabelSuffix || 'role'}</span>
                     </div>
                     <button
                       type="button"
@@ -715,7 +721,7 @@ function App() {
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
                     >
-                      <span>⚙️</span> Manage Profile & Security
+                      <span>⚙️</span> {t.manageProfileMenu || 'Manage Profile & Security'}
                     </button>
                     <button
                       type="button"
@@ -725,7 +731,7 @@ function App() {
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 border-t border-slate-100"
                     >
-                      <span>🚪</span> Sign Out
+                      <span>🚪</span> {t.signOut || 'Sign Out'}
                     </button>
                   </div>
                 )}

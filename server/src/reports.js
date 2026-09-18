@@ -151,5 +151,26 @@ export function reportsRouter({ reports = Report, storage = evidenceStore() } = 
   router.get('/:id/case', findVisible, (req, res) => {
     res.json({ case: req.report.assessment || null, report: reportDto(req.report) });
   });
+
+  router.delete('/:id', allow('admin'), findVisible, async (req, res) => {
+    try {
+      const fileIds = [];
+      if (req.report.photo?.fileId) fileIds.push(req.report.photo.fileId);
+      if (Array.isArray(req.report.extraPhotos)) {
+        req.report.extraPhotos.forEach(p => { if (p.fileId) fileIds.push(p.fileId); });
+      }
+
+      // Cascading delete of stored photos in GridFS
+      if (storage?.remove && fileIds.length > 0) {
+        await Promise.allSettled(fileIds.map(id => storage.remove(id)));
+      }
+
+      await reports.deleteOne({ _id: req.report._id });
+      res.json({ success: true, deletedId: String(req.report._id) });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to delete report.' });
+    }
+  });
+
   return router;
 }

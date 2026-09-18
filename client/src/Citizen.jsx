@@ -310,17 +310,12 @@ export default function Citizen({
     try {
       await request(`/api/notifications/${notifId}/read`, { method: 'PATCH' });
       setNotifications(list => list.map(n => (n._id === notifId ? { ...n, read: true } : n)));
-<<<<<<< HEAD
       setUnreadCount(c => {
         const next = Math.max(0, c - 1);
         if (onUnreadCountChange) onUnreadCountChange(next);
         return next;
       });
     } catch {}
-=======
-      setUnreadCount(c => Math.max(0, c - 1));
-    } catch { }
->>>>>>> origin/main
   }
 
   async function handleMarkAllRead() {
@@ -328,12 +323,8 @@ export default function Citizen({
       await request('/api/notifications/mark-all-read', { method: 'POST' });
       setNotifications(list => list.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
-<<<<<<< HEAD
       if (onUnreadCountChange) onUnreadCountChange(0);
     } catch {}
-=======
-    } catch { }
->>>>>>> origin/main
   }
 
   async function respondClarification(incidentId, clarId) {
@@ -389,11 +380,10 @@ export default function Citizen({
                   </div>
                   <div>
                     <h3 className="text-red-900 font-bold text-base sm:text-lg">
-                      Flood Warning in Your Area
+                      {t.floodWarningTitle || 'Flood Warning in Your Area'}
                     </h3>
                     <p className="text-red-700/90 text-xs sm:text-sm mt-0.5 leading-relaxed">
-                      Heavy rainfall has been detected in {displayWardName} and surrounding areas.
-                      Avoid low-lying roads and stay in safe locations.
+                      {(t.floodWarningDesc || 'Heavy rainfall has been detected in {ward} and surrounding areas. Avoid low-lying roads and stay in safe locations.').replace('{ward}', displayWardName)}
                     </p>
                   </div>
                 </div>
@@ -404,7 +394,7 @@ export default function Citizen({
                     onClick={() => setActiveCategory('routes')}
                     className="bg-[#fecdd3] hover:bg-[#fda4af] text-red-900 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition-colors shadow-2xs"
                   >
-                    <span>View Safe Routes</span>
+                    <span>{t.viewSafeRoutesBtn || 'View Safe Routes'}</span>
                     <span>→</span>
                   </button>
                   <button
@@ -416,380 +406,13 @@ export default function Citizen({
                     ✕
                   </button>
                 </div>
-<<<<<<< HEAD
-
-                {/* Clarifications */}
-                {clarifications.length > 0 && (
-                  <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="badge bg-amber-200 text-amber-900 border-amber-400 font-bold text-xs">
-                        OFFICIAL INQUIRY
-                      </span>
-                      <h4 className="font-bold text-sm text-amber-950">Field Responders Need Your Ground Input</h4>
-                    </div>
-                    {clarifications.map(c => (
-                      <div key={c._id} className="p-3 bg-white border border-amber-200 rounded-lg space-y-2 text-xs">
-                        <div className="font-semibold text-slate-900">{c.question}</div>
-                        <div className="text-slate-500">
-                          Related to: {c.incidentTitle} · Area: {c.ward}
-                        </div>
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {['confirmed_hazard', 'hazard_cleared', 'uncertain'].map(opt => (
-                            <button
-                              key={opt}
-                              type="button"
-                              className={`text-xs px-2.5 py-1 rounded border ${
-                                (clarResponse[c._id]?.choice || 'confirmed_hazard') === opt
-                                  ? 'bg-amber-600 text-white border-amber-600'
-                                  : 'bg-white text-slate-700 border-slate-300'
-                              }`}
-                              onClick={() =>
-                                setClarResponse(prev => ({
-                                  ...prev,
-                                  [c._id]: { ...prev[c._id], choice: opt },
-                                }))
-                              }
-                            >
-                              {opt === 'confirmed_hazard'
-                                ? 'Hazard Present'
-                                : opt === 'hazard_cleared'
-                                ? 'Hazard Cleared'
-                                : 'Not Sure'}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <input
-                            type="text"
-                            placeholder="Optional ground notes (e.g. depth, passage status)..."
-                            value={clarResponse[c._id]?.comment || ''}
-                            onChange={e =>
-                              setClarResponse(prev => ({
-                                ...prev,
-                                [c._id]: { ...prev[c._id], comment: e.target.value },
-                              }))
-                            }
-                            className="text-xs p-1.5 border rounded flex-1"
-                          />
-                          <button
-                            type="button"
-                            className="bg-amber-700 hover:bg-amber-800 text-white text-xs px-3 py-1 rounded font-semibold disabled:opacity-50"
-                            disabled={respondingId === c._id}
-                            onClick={() => respondClarification(c.incidentId, c._id)}
-                          >
-                            {respondingId === c._id ? 'Sending…' : 'Send'}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Alerts List */}
-                <div className="space-y-3">
-                  {alerts.map(a => (
-                    <div
-                      key={a._id || a.title}
-                      className={`p-4 rounded-xl border ${
-                        a.severity === 'danger'
-                          ? 'bg-rose-50 border-rose-400 text-rose-950'
-                          : a.severity === 'warning'
-                          ? 'bg-amber-50 border-amber-400 text-amber-950'
-                          : 'bg-sky-50 border-sky-400 text-sky-950'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span
-                          className={`badge text-xs font-bold uppercase ${
-                            a.severity === 'danger'
-                              ? 'bg-rose-200 text-rose-900 border-rose-400'
-                              : a.severity === 'warning'
-                              ? 'bg-amber-200 text-amber-900 border-amber-400'
-                              : 'bg-sky-200 text-sky-900 border-sky-400'
-                          }`}
-                        >
-                          {a.severity === 'danger'
-                            ? 'CRITICAL DANGER'
-                            : a.severity === 'warning'
-                            ? 'FLOOD WARNING'
-                            : 'ADVISORY'}
-                        </span>
-                        <h3 className="font-bold text-sm">{a.title}</h3>
-                      </div>
-                      <div className="text-xs opacity-80 mb-2">
-                        Source: {a.source} · Trigger: {a.trigger?.stationName} ({a.trigger?.value} ft)
-                      </div>
-                      {a.recommendations?.length > 0 && (
-                        <ul className="list-disc list-inside text-xs space-y-0.5">
-                          {a.recommendations.map((rec, i) => (
-                            <li key={i}>{rec}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
-                  {clarifications.length === 0 && alerts.length === 0 && (
-                    <p className="text-xs text-slate-400 py-2">
-                      {t.allClearDesc || 'There are currently no active river flood breaches or open responder inquiries in your zone.'}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Section 1: Monitored Saved Location & Alert Delivery (Screenshot 1) */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div>
-                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block">
-                      {t.notifEyebrow || 'PROXIMITY ADVISORIES'}
-                    </span>
-                    <h2 className="text-xl font-bold text-slate-900">{t.notifHeading || 'Monitored Saved Location & Alert Delivery'}</h2>
-                  </div>
-                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold text-xs px-2.5 py-1 rounded-md">
-                    {savedLoc.optInAlerts ? (lang === 'si' ? '● සක්‍රීයයි' : '• ALERTS ACTIVE') : (lang === 'si' ? '○ අක්‍රීයයි' : '○ ALERTS OFF')}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mb-5">
-                  {t.notifSubheading || 'Receive automatic updates relevant to your saved location when river gauges rise or field crews resolve hazards.'}
-                </p>
-
-                <form onSubmit={handleSaveLocation} className="space-y-4 text-xs">
-                  <div className="p-5 bg-white border border-slate-200 rounded-xl space-y-4">
-                    <div className="flex items-center gap-3">
-                      <input
-                        id="opt-in-alerts"
-                        type="checkbox"
-                        checked={savedLoc.optInAlerts}
-                        onChange={e => setSavedLoc(prev => ({ ...prev, optInAlerts: e.target.checked }))}
-                        className="rounded text-blue-600 h-4 w-4 shrink-0"
-                      />
-                      <label htmlFor="opt-in-alerts" className="font-bold text-sm text-slate-900 cursor-pointer">
-                        {t.optInCheckbox || 'Opt in to Nearby Emergency Warnings for My Saved Location'}
-                      </label>
-                    </div>
-
-                    {savedLoc.optInAlerts && (
-                      <div className="space-y-4 pt-3 border-t border-slate-200/80">
-                        <div>
-                          <label htmlFor="saved-ward" className="block font-semibold text-xs text-slate-700 mb-1.5">
-                            {t.primaryWardLabel || 'Primary Monitored Ward / Corridor'}
-                          </label>
-                          <select
-                            id="saved-ward"
-                            value={savedLoc.wardId || ''}
-                            onChange={e => {
-                              const wId = e.target.value;
-                              const found = availableWards.find(w => w.id === wId);
-                              setSavedLoc(prev => ({
-                                ...prev,
-                                wardId: wId,
-                                wardName: found ? found.name : prev.wardName,
-                                latitude: found?.center?.latitude ?? prev.latitude,
-                                longitude: found?.center?.longitude ?? prev.longitude,
-                              }));
-                            }}
-                            className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          >
-                            {availableWards.map(w => (
-                              <option key={w.id} value={w.id}>
-                                {w.name} ({w.district})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="p-3.5 bg-white border border-slate-200 rounded-lg space-y-2">
-                          <div className="flex items-center gap-3">
-                            <input
-                              id="channel-email-toggle"
-                              type="checkbox"
-                              checked={Boolean(savedLoc.channelEmail)}
-                              onChange={e => setSavedLoc(prev => ({ ...prev, channelEmail: e.target.checked }))}
-                              className="rounded text-blue-600 h-4 w-4 shrink-0"
-                            />
-                            <label htmlFor="channel-email-toggle" className="font-semibold text-xs text-slate-900 cursor-pointer">
-                              {t.emailChannelToggle || 'Optional Email Delivery Channel'}
-                            </label>
-                          </div>
-
-                          {savedLoc.channelEmail && (
-                            <div className="space-y-1.5 pt-1">
-                              <label htmlFor="citizen-email" className="block text-[11px] text-slate-600 font-medium">
-                                {lang === 'si' ? 'විද්‍යුත් තැපැල් ලිපිනය (Email):' : 'Recipient Email Address:'}
-                              </label>
-                              <input
-                                id="citizen-email"
-                                type="email"
-                                placeholder="name@example.com"
-                                value={savedLoc.email || ''}
-                                onChange={e => setSavedLoc(prev => ({ ...prev, email: e.target.value }))}
-                                className="w-full p-2 border border-slate-300 rounded text-xs"
-                                required={savedLoc.channelEmail}
-                              />
-                              <p className="text-[10px] text-slate-500 italic mt-1 leading-relaxed">
-                                🔒 Strict Privacy: Emails contain only the affected corridor, warning type, timestamp, and a link to live detour routes. Private citizen report descriptions, photos, and exact coordinates are never emailed.
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <button
-                      type="submit"
-                      disabled={savingLoc}
-                      className="bg-[#174b3c] hover:bg-[#123b30] text-white text-xs px-4 py-2.5 rounded-lg font-bold shadow-xs disabled:opacity-50 transition-colors"
-                    >
-                      {savingLoc ? (lang === 'si' ? 'සුරකිමින් පවතී…' : 'Saving Settings…') : (t.savePreferencesBtn || 'Save Location & Preferences')}
-                    </button>
-                    {locFeedback && (
-                      <span className={`text-xs font-semibold ${locFeedback.error ? 'text-rose-600' : 'text-emerald-700'}`}>
-                        {locFeedback.text}
-                      </span>
-                    )}
-                  </div>
-                </form>
-              </div>
-
-              {/* Section 2: In-App Notification Feed (Screenshot 2) */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
-                  <div>
-                    <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                      <span>In-App Location Alerts Feed</span>
-                      {unreadCount > 0 && (
-                        <span className="bg-[#e11d48] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                          {unreadCount} Unread
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Updates triggered automatically when hazards are confirmed, weather warnings issue, or incidents are resolved near {savedLoc.wardName || 'your area'}.
-                    </p>
-                  </div>
-
-                  {notifications.length > 0 && unreadCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleMarkAllRead}
-                      className="border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
-                    >
-                      <span>✓</span> Mark All as Read
-                    </button>
-                  )}
-                </div>
-
-                {notifications.length === 0 ? (
-                  <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <span className="text-2xl">🔔</span>
-                    <h4 className="font-bold text-slate-800 text-sm">No Location Alerts Yet</h4>
-                    <p className="text-xs text-slate-500 max-w-md mx-auto">
-                      {savedLoc.optInAlerts
-                        ? `Your monitored location is set to ${savedLoc.wardName || 'your area'}. When responders confirm hazards or river gauges trigger in your area, instant advisories will display here.`
-                        : 'Opt in above to receive proactive advisories when incidents or weather warnings affect your saved location.'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {notifications.map(n => (
-                      <div
-                        key={n._id}
-                        className={`p-4 rounded-xl border-2 transition-all bg-white ${
-                          !n.read ? 'border-[#34d399] shadow-xs' : 'border-slate-200 opacity-90'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
-                                n.type === 'incident_resolved'
-                                  ? 'bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]'
-                                  : n.type === 'officer_confirmed_incident'
-                                  ? 'bg-[#fff1f2] text-[#9f1239] border-[#fecdd3]'
-                                  : 'bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]'
-                              }`}
-                            >
-                              {n.type === 'incident_resolved'
-                                ? '✅ HAZARD RESOLVED'
-                                : n.type === 'officer_confirmed_incident'
-                                ? '🚨 OFFICER-CONFIRMED INCIDENT'
-                                : '🌦️ SIMULATED WEATHER WARNING'}
-                            </span>
-                            {!n.read && (
-                              <span className="bg-[#059669] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
-                                NEW
-                              </span>
-                            )}
-                            <span className="text-[11px] text-slate-500">
-                              {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-
-                          {/* Delivery Status Pill & Mark Read */}
-                          <div className="flex items-center gap-2">
-                            {n.emailDelivery?.sent ? (
-                              <span className="text-[10px] font-semibold bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0] text-[#15803d]" title={`Dispatched to ${n.emailDelivery.recipientEmail}`}>
-                                ✉️ Email Delivered
-                              </span>
-                            ) : n.emailDelivery?.attempted && !n.emailDelivery?.sent ? (
-                              <span className="text-[10px] font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-300 text-amber-800" title={n.emailDelivery.error}>
-                                ⚠️ Email Failed (In-App Safe)
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                                📱 In-App Alert
-                              </span>
-                            )}
-
-                            {!n.read && (
-                              <button
-                                type="button"
-                                onClick={() => handleMarkRead(n._id)}
-                                className="text-[11px] text-slate-600 hover:text-slate-900 font-semibold underline ml-1 cursor-pointer"
-                              >
-                                Mark Read
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        <h4 className="font-bold text-sm text-slate-900 mb-1">
-                          {n.title}
-                        </h4>
-                        <p className="text-xs text-slate-600 mb-2.5 leading-relaxed">{n.message}</p>
-
-                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-                          <div>
-                            Corridor / Ward: <strong className="text-slate-800">{n.area}</strong> · Source: {n.source}
-                          </div>
-                          {n.type !== 'incident_resolved' && (
-                            <button
-                              type="button"
-                              onClick={() => setActiveCategory('routes')}
-                              className="font-bold text-xs text-[#0f766e] hover:text-[#065f46] hover:underline cursor-pointer"
-                            >
-                              Check Safe Evacuation Detour Routes →
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-=======
               </div>
             )}
->>>>>>> origin/main
 
             {/* 2. "What happened?" Quick Action Cards */}
             <div>
-              <h3 className="text-lg font-bold text-slate-900">What happened?</h3>
-              <p className="text-xs text-slate-500 mb-4">Report a hazard or request help from authorities.</p>
+              <h3 className="text-lg font-bold text-slate-900">{t.whatHappenedTitle || 'What happened?'}</h3>
+              <p className="text-xs text-slate-500 mb-4">{t.whatHappenedSubtitle || 'Report a hazard or request help from authorities.'}</p>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {/* Flood */}
@@ -798,11 +421,15 @@ export default function Citizen({
                   onClick={() => openModalWithCategory('flood')}
                   className="bg-[#f0f7fe] hover:bg-[#e0f0fd] border border-[#d6e8fa] rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center cursor-pointer transition-all hover:shadow-xs group text-left"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#0284c7] text-white flex items-center justify-center text-xl shadow-xs group-hover:scale-105 transition-transform">
-                    🌊
+                  <div className="w-12 h-12 rounded-full bg-[#0284c7] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 12c1.5-1.5 3.5-2 5-1s3.5 2 5 1 3.5-2 5-1 3.5 2 5 1" />
+                      <path d="M2 17c1.5-1.5 3.5-2 5-1s3.5 2 5 1 3.5-2 5-1 3.5 2 5 1" />
+                      <path d="M2 7c1.5-1.5 3.5-2 5-1s3.5 2 5 1 3.5-2 5-1 3.5 2 5 1" />
+                    </svg>
                   </div>
-                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">Flood</h4>
-                  <p className="text-[11px] text-slate-500 leading-tight">Water on roads, areas, or homes</p>
+                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">{t.catFlood || 'Flood'}</h4>
+                  <p className="text-[11px] text-slate-500 leading-tight">{t.catFloodDesc || 'Water on roads, areas, or homes'}</p>
                 </button>
 
                 {/* Fallen Tree */}
@@ -811,11 +438,14 @@ export default function Citizen({
                   onClick={() => openModalWithCategory('tree')}
                   className="bg-[#fff6ee] hover:bg-[#ffede0] border border-[#fde4d0] rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center cursor-pointer transition-all hover:shadow-xs group text-left"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#ea580c] text-white flex items-center justify-center text-xl shadow-xs group-hover:scale-105 transition-transform">
-                    🌲
+                  <div className="w-12 h-12 rounded-full bg-[#ea580c] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2L6 9h4l-3 6h4l-4 5h10l-4-5h4l-3-6h4z" />
+                      <path d="M12 20v2" />
+                    </svg>
                   </div>
-                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">Fallen Tree</h4>
-                  <p className="text-[11px] text-slate-500 leading-tight">Trees blocking roads or areas</p>
+                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">{t.catTree || 'Fallen Tree'}</h4>
+                  <p className="text-[11px] text-slate-500 leading-tight">{t.catTreeDesc || 'Trees blocking roads or areas'}</p>
                 </button>
 
                 {/* Road Block */}
@@ -824,11 +454,17 @@ export default function Citizen({
                   onClick={() => openModalWithCategory('roadblock')}
                   className="bg-[#fdfaee] hover:bg-[#fcf5dd] border border-[#f7ecc8] rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center cursor-pointer transition-all hover:shadow-xs group text-left"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#d97706] text-white flex items-center justify-center text-xl shadow-xs group-hover:scale-105 transition-transform">
-                    🚧
+                  <div className="w-12 h-12 rounded-full bg-[#d97706] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="4" y="4" width="16" height="16" rx="2" />
+                      <path d="M4 9h16" />
+                      <path d="M4 15h16" />
+                      <path d="M9 4v16" />
+                      <path d="M15 4v16" />
+                    </svg>
                   </div>
-                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">Road Block</h4>
-                  <p className="text-[11px] text-slate-500 leading-tight">Blocked or damaged roads</p>
+                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">{t.catRoadblock || 'Road Block'}</h4>
+                  <p className="text-[11px] text-slate-500 leading-tight">{t.catRoadblockDesc || 'Blocked or damaged roads'}</p>
                 </button>
 
                 {/* Need Help */}
@@ -837,11 +473,15 @@ export default function Citizen({
                   onClick={() => openModalWithCategory('help')}
                   className="bg-[#fef2f2] hover:bg-[#fee2e2] border border-[#fecaca] rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center cursor-pointer transition-all hover:shadow-xs group text-left"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#e11d48] text-white flex items-center justify-center text-xs font-black shadow-xs group-hover:scale-105 transition-transform">
-                    SOS
+                  <div className="w-12 h-12 rounded-full bg-[#e11d48] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 9v4" />
+                      <path d="M12 17h.01" />
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    </svg>
                   </div>
-                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">Need Help</h4>
-                  <p className="text-[11px] text-slate-500 leading-tight">Request emergency assistance</p>
+                  <h4 className="font-bold text-sm text-slate-900 mt-3 mb-1">{t.catHelp || 'Need Help'}</h4>
+                  <p className="text-[11px] text-slate-500 leading-tight">{t.catHelpDesc || 'Request emergency assistance'}</p>
                 </button>
               </div>
             </div>
@@ -850,15 +490,15 @@ export default function Citizen({
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Nearby Hazards</h3>
-                  <p className="text-xs text-slate-500">Live reports from your area</p>
+                  <h3 className="text-lg font-bold text-slate-900">{t.nearbyHazardsTitle || 'Nearby Hazards'}</h3>
+                  <p className="text-xs text-slate-500">{t.nearbyHazardsSubtitle || 'Live reports from your area'}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveCategory('routes')}
                   className="text-blue-600 hover:underline text-xs font-semibold"
                 >
-                  Open Navigation & Detours →
+                  {t.openNavigationBtn || 'Open Navigation & Detours →'}
                 </button>
               </div>
 
@@ -882,7 +522,7 @@ export default function Citizen({
                   <span className="text-3xl">🌧️</span>
                   <div>
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Current Weather
+                      {t.currentWeather || 'Current Weather'}
                     </span>
                     <strong className="text-sm font-bold text-slate-800">{displayWardName}</strong>
                   </div>
@@ -898,14 +538,14 @@ export default function Citizen({
                 <div className="space-y-2 text-xs text-slate-600">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-slate-500">
-                      <span className="text-blue-500">💧</span> Rainfall
+                      <span className="text-blue-500">💧</span> {t.weatherRainfall || 'Rainfall'}
                     </span>
                     <span className="font-bold text-slate-800">{rainfallMm} mm</span>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-slate-500">
-                      <span className="text-sky-600">🌊</span> River Level
+                      <span className="text-sky-600">🌊</span> {t.weatherRiverLevel || 'River Level'}
                     </span>
                     <span className="font-bold text-slate-800 flex items-center gap-0.5">
                       {riverLevelMeters} m <span className="text-red-500 font-bold">↑</span>
@@ -914,7 +554,7 @@ export default function Citizen({
 
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-slate-500">
-                      <span className="text-slate-400">💨</span> Wind
+                      <span className="text-slate-400">💨</span> {t.weatherWind || 'Wind'}
                     </span>
                     <span className="font-bold text-slate-800">18 km/h</span>
                   </div>
@@ -925,13 +565,13 @@ export default function Citizen({
             {/* 2. Nearby Shelters Card */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-sm text-slate-900">Nearby Shelters</h4>
+                <h4 className="font-bold text-sm text-slate-900">{t.nearbySheltersTitle || 'Nearby Shelters'}</h4>
                 <button
                   type="button"
                   onClick={() => setActiveCategory('shelters')}
                   className="text-blue-600 hover:underline text-xs font-semibold"
                 >
-                  View All
+                  {t.viewAllBtn || 'View All'}
                 </button>
               </div>
 
@@ -951,12 +591,12 @@ export default function Citizen({
                         </div>
                       </div>
                       <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                        {s.remainingCapacity || s.maxCapacity - s.currentOccupancy} spaces
+                        {s.remainingCapacity || s.maxCapacity - s.currentOccupancy} {t.spacesLeft || 'spaces'}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400">Loading shelter availability…</p>
+                  <p className="text-xs text-slate-400">{t.loadingShelters || 'Loading shelter availability…'}</p>
                 )}
               </div>
             </div>
@@ -964,13 +604,13 @@ export default function Citizen({
             {/* 3. Recent Alerts Card */}
             <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-sm text-slate-900">Recent Alerts</h4>
+                <h4 className="font-bold text-sm text-slate-900">{t.recentAlertsTitle || 'Recent Alerts'}</h4>
                 <button
                   type="button"
                   onClick={() => setActiveCategory('alerts')}
                   className="text-blue-600 hover:underline text-xs font-semibold"
                 >
-                  View All
+                  {t.viewAllBtn || 'View All'}
                 </button>
               </div>
 
@@ -999,7 +639,7 @@ export default function Citizen({
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400">No active disaster alerts.</p>
+                  <p className="text-xs text-slate-400">{t.noActiveAlerts || 'No active disaster alerts.'}</p>
                 )}
               </div>
             </div>
@@ -1014,20 +654,20 @@ export default function Citizen({
             <div className="flex items-center justify-between mb-3">
               <div>
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block">
-                  Emergency Navigation
+                  {t.emergencyNavigation || 'Emergency Navigation'}
                 </span>
-                <h2 className="text-lg font-bold text-slate-900">Safe Route Calculator (Dijkstra)</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t.safeRouteCalcTitle || 'Safe Route Calculator (Dijkstra)'}</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveCategory('home')}
                 className="secondary text-xs"
               >
-                ← Back to Dashboard
+                {t.backToDashboard || '← Back to Dashboard'}
               </button>
             </div>
             <p className="text-xs text-slate-500 mb-5">
-              Calculates shortest safe corridors dynamically bypassing closed arterial roads and flood hazards.
+              {t.safeRouteCalcDesc || 'Calculates shortest safe corridors dynamically bypassing closed arterial roads and flood hazards.'}
             </p>
             <RoutingWidget lang={lang} t={t} />
           </div>
@@ -1041,16 +681,16 @@ export default function Citizen({
             <div className="flex items-center justify-between mb-4">
               <div>
                 <span className="text-xs font-bold text-amber-600 uppercase tracking-wider block">
-                  Civil Protection Feed
+                  {t.civilProtectionFeed || 'Civil Protection Feed'}
                 </span>
-                <h2 className="text-lg font-bold text-slate-900">Official Alerts & Inquiries</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t.officialAlertsTitle || 'Official Alerts & Inquiries'}</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveCategory('home')}
                 className="secondary text-xs"
               >
-                ← Back to Dashboard
+                {t.backToDashboard || '← Back to Dashboard'}
               </button>
             </div>
 
@@ -1163,6 +803,250 @@ export default function Citizen({
               ))}
             </div>
           </div>
+
+          {/* Section 1: Monitored Saved Location & Alert Delivery */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div>
+                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block">
+                  {t.notifEyebrow || 'PROXIMITY ADVISORIES'}
+                </span>
+                <h2 className="text-xl font-bold text-slate-900">{t.notifHeading || 'Monitored Saved Location & Alert Delivery'}</h2>
+              </div>
+              <span className="bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold text-xs px-2.5 py-1 rounded-md">
+                {savedLoc.optInAlerts ? (lang === 'si' ? '● සක්‍රීයයි' : '• ALERTS ACTIVE') : (lang === 'si' ? '○ අක්‍රීයයි' : '○ ALERTS OFF')}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-5">
+              {t.notifSubheading || 'Receive automatic updates relevant to your saved location when river gauges rise or field crews resolve hazards.'}
+            </p>
+
+            <form onSubmit={handleSaveLocation} className="space-y-4 text-xs">
+              <div className="p-5 bg-white border border-slate-200 rounded-xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    id="opt-in-alerts"
+                    type="checkbox"
+                    checked={savedLoc.optInAlerts}
+                    onChange={e => setSavedLoc(prev => ({ ...prev, optInAlerts: e.target.checked }))}
+                    className="rounded text-blue-600 h-4 w-4 shrink-0"
+                  />
+                  <label htmlFor="opt-in-alerts" className="font-bold text-sm text-slate-900 cursor-pointer">
+                    {t.optInCheckbox || 'Opt in to Nearby Emergency Warnings for My Saved Location'}
+                  </label>
+                </div>
+
+                {savedLoc.optInAlerts && (
+                  <div className="space-y-4 pt-3 border-t border-slate-200/80">
+                    <div>
+                      <label htmlFor="saved-ward" className="block font-semibold text-xs text-slate-700 mb-1.5">
+                        {t.primaryWardLabel || 'Primary Monitored Ward / Corridor'}
+                      </label>
+                      <select
+                        id="saved-ward"
+                        value={savedLoc.wardId || ''}
+                        onChange={e => {
+                          const wId = e.target.value;
+                          const found = availableWards.find(w => w.id === wId);
+                          setSavedLoc(prev => ({
+                            ...prev,
+                            wardId: wId,
+                            wardName: found ? found.name : prev.wardName,
+                            latitude: found?.center?.latitude ?? prev.latitude,
+                            longitude: found?.center?.longitude ?? prev.longitude,
+                          }));
+                        }}
+                        className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      >
+                        {availableWards.map(w => (
+                          <option key={w.id} value={w.id}>
+                            {w.name} ({w.district})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="p-3.5 bg-white border border-slate-200 rounded-lg space-y-2">
+                      <div className="flex items-center gap-3">
+                        <input
+                          id="channel-email-toggle"
+                          type="checkbox"
+                          checked={Boolean(savedLoc.channelEmail)}
+                          onChange={e => setSavedLoc(prev => ({ ...prev, channelEmail: e.target.checked }))}
+                          className="rounded text-blue-600 h-4 w-4 shrink-0"
+                        />
+                        <label htmlFor="channel-email-toggle" className="font-semibold text-xs text-slate-900 cursor-pointer">
+                          {t.emailChannelToggle || 'Optional Email Delivery Channel'}
+                        </label>
+                      </div>
+
+                      {savedLoc.channelEmail && (
+                        <div className="space-y-1.5 pt-1">
+                          <label htmlFor="citizen-email" className="block text-[11px] text-slate-600 font-medium">
+                            {lang === 'si' ? 'විද්‍යුත් තැපැල් ලිපිනය (Email):' : 'Recipient Email Address:'}
+                          </label>
+                          <input
+                            id="citizen-email"
+                            type="email"
+                            placeholder="name@example.com"
+                            value={savedLoc.email || ''}
+                            onChange={e => setSavedLoc(prev => ({ ...prev, email: e.target.value }))}
+                            className="w-full p-2 border border-slate-300 rounded text-xs"
+                            required={savedLoc.channelEmail}
+                          />
+                          <p className="text-[10px] text-slate-500 italic mt-1 leading-relaxed">
+                            🔒 Strict Privacy: Emails contain only the affected corridor, warning type, timestamp, and a link to live detour routes. Private citizen report descriptions, photos, and exact coordinates are never emailed.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="submit"
+                  disabled={savingLoc}
+                  className="bg-[#174b3c] hover:bg-[#123b30] text-white text-xs px-4 py-2.5 rounded-lg font-bold shadow-xs disabled:opacity-50 transition-colors"
+                >
+                  {savingLoc ? (lang === 'si' ? 'සුරකිමින් පවතී…' : 'Saving Settings…') : (t.savePreferencesBtn || 'Save Location & Preferences')}
+                </button>
+                {locFeedback && (
+                  <span className={`text-xs font-semibold ${locFeedback.error ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    {locFeedback.text}
+                  </span>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Section 2: In-App Notification Feed */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                  <span>In-App Location Alerts Feed</span>
+                  {unreadCount > 0 && (
+                    <span className="bg-[#e11d48] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                      {unreadCount} Unread
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Updates triggered automatically when hazards are confirmed, weather warnings issue, or incidents are resolved near {savedLoc.wardName || 'your area'}.
+                </p>
+              </div>
+
+              {notifications.length > 0 && unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  className="border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
+                >
+                  <span>✓</span> Mark All as Read
+                </button>
+              )}
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span className="text-2xl">🔔</span>
+                <h4 className="font-bold text-slate-800 text-sm">No Location Alerts Yet</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  {savedLoc.optInAlerts
+                    ? `Your monitored location is set to ${savedLoc.wardName || 'your area'}. When responders confirm hazards or river gauges trigger in your area, instant advisories will display here.`
+                    : 'Opt in above to receive proactive advisories when incidents or weather warnings affect your saved location.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map(n => (
+                  <div
+                    key={n._id}
+                    className={`p-4 rounded-xl border-2 transition-all bg-white ${
+                      !n.read ? 'border-[#34d399] shadow-xs' : 'border-slate-200 opacity-90'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
+                            n.type === 'incident_resolved'
+                              ? 'bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]'
+                              : n.type === 'officer_confirmed_incident'
+                              ? 'bg-[#fff1f2] text-[#9f1239] border-[#fecdd3]'
+                              : 'bg-[#ecfdf5] text-[#065f46] border-[#a7f3d0]'
+                          }`}
+                        >
+                          {n.type === 'incident_resolved'
+                            ? '✅ HAZARD RESOLVED'
+                            : n.type === 'officer_confirmed_incident'
+                            ? '🚨 OFFICER-CONFIRMED INCIDENT'
+                            : '🌦️ SIMULATED WEATHER WARNING'}
+                        </span>
+                        {!n.read && (
+                          <span className="bg-[#059669] text-white text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                            NEW
+                          </span>
+                        )}
+                        <span className="text-[11px] text-slate-500">
+                          {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      {/* Delivery Status Pill & Mark Read */}
+                      <div className="flex items-center gap-2">
+                        {n.emailDelivery?.sent ? (
+                          <span className="text-[10px] font-semibold bg-[#f0fdf4] px-2 py-0.5 rounded border border-[#bbf7d0] text-[#15803d]" title={`Dispatched to ${n.emailDelivery.recipientEmail}`}>
+                            ✉️ Email Delivered
+                          </span>
+                        ) : n.emailDelivery?.attempted && !n.emailDelivery?.sent ? (
+                          <span className="text-[10px] font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-300 text-amber-800" title={n.emailDelivery.error}>
+                            ⚠️ Email Failed (In-App Safe)
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                            📱 In-App Alert
+                          </span>
+                        )}
+
+                        {!n.read && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkRead(n._id)}
+                            className="text-[11px] text-slate-600 hover:text-slate-900 font-semibold underline ml-1 cursor-pointer"
+                          >
+                            Mark Read
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <h4 className="font-bold text-sm text-slate-900 mb-1">
+                      {n.title}
+                    </h4>
+                    <p className="text-xs text-slate-600 mb-2.5 leading-relaxed">{n.message}</p>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                      <div>
+                        Corridor / Ward: <strong className="text-slate-800">{n.area}</strong> · Source: {n.source}
+                      </div>
+                      {n.type !== 'incident_resolved' && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveCategory('routes')}
+                          className="font-bold text-xs text-[#0f766e] hover:text-[#065f46] hover:underline cursor-pointer"
+                        >
+                          Check Safe Evacuation Detour Routes →
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1173,16 +1057,16 @@ export default function Citizen({
             <div className="flex items-center justify-between mb-4">
               <div>
                 <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block">
-                  Civil Protection
+                  {t.alertsEyebrow || 'Civil Protection'}
                 </span>
-                <h2 className="text-lg font-bold text-slate-900">Designated Evacuation Centers</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t.designatedSheltersTitle || 'Designated Evacuation Centers'}</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveCategory('home')}
                 className="secondary text-xs"
               >
-                ← Back to Dashboard
+                {t.backToDashboard || '← Back to Dashboard'}
               </button>
             </div>
 
@@ -1192,7 +1076,7 @@ export default function Citizen({
                   <div className="flex items-center justify-between">
                     <strong className="text-sm text-slate-900">{s.name}</strong>
                     <span className="badge bg-emerald-100 text-emerald-800 font-bold">
-                      {s.remainingCapacity} spaces left
+                      {s.remainingCapacity} {t.spacesLeft || 'spaces left'}
                     </span>
                   </div>
                   <p className="text-slate-600">{s.address} · {s.wardName}</p>
@@ -1216,7 +1100,7 @@ export default function Citizen({
               onClick={() => setActiveCategory('home')}
               className="secondary text-xs"
             >
-              ← Back to Dashboard
+              {t.backToDashboard || '← Back to Dashboard'}
             </button>
           </div>
           <ReportQueue own title="My Reported Hazards & Requests" refreshKey={refresh} />
@@ -1254,7 +1138,7 @@ export default function Citizen({
                     className="rounded text-emerald-700 h-4 w-4"
                   />
                   <label htmlFor="opt-in-alerts" className="font-bold text-slate-900 cursor-pointer">
-                    Receive Proactive Alerts for My Monitored Area
+                    {t.receiveProactiveAlerts || 'Receive Proactive Alerts for My Monitored Area'}
                   </label>
                 </div>
 
@@ -1262,7 +1146,7 @@ export default function Citizen({
                   <div className="space-y-3 pt-2 border-t border-slate-200">
                     <div>
                       <label htmlFor="saved-ward" className="block font-semibold text-slate-700 mb-1">
-                        Primary Monitored Ward
+                        {t.primaryMonitoredWard || 'Primary Monitored Ward'}
                       </label>
                       <select
                         id="saved-ward"

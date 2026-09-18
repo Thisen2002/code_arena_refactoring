@@ -4,7 +4,7 @@ import ReportMap from './ReportMap.jsx';
 import CaseModal from './CaseModal.jsx';
 import CitizenReportModal from './CitizenReportModal.jsx';
 
-export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, helpOnly = false, own = false }) {
+export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, helpOnly = false, own = false, user = null, lang = 'en', t = {} }) {
   const [state, setState] = useState({ reports: [], loading: true, error: '', hasMore: false });
   const [offset, setOffset] = useState(0);
   const [refresh, setRefresh] = useState(0);
@@ -72,7 +72,7 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
             onClick={downloadSitrepCSV}
             title="Download operational situation report as CSV"
           >
-            <span>📥</span> Export Sitrep CSV
+            <span>📥</span> {lang === 'si' ? 'Sitrep CSV බාගන්න' : 'Export Sitrep CSV'}
           </button>
         )}
         <button
@@ -80,10 +80,10 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
           className="secondary text-xs"
           onClick={() => setShowMap(v => !v)}
         >
-          {showMap ? '🗺️ Hide Map' : '🗺️ Show Map'}
+          {showMap ? (lang === 'si' ? '🗺️ සිතියම සඟවන්න' : '🗺️ Hide Map') : (lang === 'si' ? '🗺️ සිතියම පෙන්වන්න' : '🗺️ Show Map')}
         </button>
         <button className="secondary text-xs" disabled={state.loading} onClick={() => setRefresh(n => n + 1)}>
-          Refresh
+          {lang === 'si' ? 'යාවත්කාලීන කරන්න' : 'Refresh'}
         </button>
       </div>
     </div>
@@ -92,9 +92,9 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
     {!helpOnly && (
       <div className="flex flex-wrap gap-2 mt-4 border-b border-slate-200 pb-3" role="tablist" aria-label="Report filter categories">
         {[
-          { id: '', label: 'All Submissions', icon: '📋' },
-          { id: 'hazard', label: 'Hazards Only', icon: '⚠️' },
-          { id: 'help', label: 'Help Requests Only', icon: '🆘' },
+          { id: '', label: lang === 'si' ? 'සියලු වාර්තා' : 'All Submissions', icon: '📋' },
+          { id: 'hazard', label: lang === 'si' ? 'ආපදා පමණි' : 'Hazards Only', icon: '⚠️' },
+          { id: 'help', label: lang === 'si' ? 'ආධාර ඉල්ලීම් පමණි' : 'Help Requests Only', icon: '🆘' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -143,13 +143,36 @@ export default function ReportQueue({ title = 'Report inbox', refreshKey = 0, he
               Unassessed
             </span>
           ))}
-          <button
-            type="button"
-            className="secondary text-xs px-2.5 py-1 ml-auto"
-            onClick={() => setSelectedReport(report)}
-          >
-            {own ? 'View Status & Details →' : (report.assessment?.status === 'evaluated' ? 'Inspect 5-check case' : 'Assess case')}
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            {user?.role === 'admin' && (
+              <button
+                type="button"
+                className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs px-2.5 py-1 rounded font-medium transition-colors"
+                title="Permanently remove report and GridFS evidence"
+                onClick={async () => {
+                  if (!confirm(`Are you sure you want to permanently delete this report (${report._id.slice(-8)})? This will also remove stored photos.`)) return;
+                  try {
+                    await request(`/api/reports/${report._id}`, { method: 'DELETE' });
+                    setState(s => ({
+                      ...s,
+                      reports: s.reports.filter(r => r._id !== report._id),
+                    }));
+                  } catch (err) {
+                    alert(`Failed to delete report: ${err.message}`);
+                  }
+                }}
+              >
+                🗑️ Delete Report
+              </button>
+            )}
+            <button
+              type="button"
+              className="secondary text-xs px-2.5 py-1"
+              onClick={() => setSelectedReport(report)}
+            >
+              {own ? 'View Status & Details →' : (report.assessment?.status === 'evaluated' ? 'Inspect 5-check case' : 'Assess case')}
+            </button>
+          </div>
         </div>
         </div>
         {(report.photo || report.extraPhotos?.length > 0) ? (

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { request } from './api.js';
+import ReportQueue from './ReportQueue.jsx';
 
-export default function Admin() {
+export default function Admin({ lang = 'en', t = {} }) {
   const [activeTab, setActiveTab] = useState('config'); // 'config' | 'feedback' | 'audit'
   const [configData, setConfigData] = useState(null);
   const [feedbackData, setFeedbackData] = useState(null);
@@ -121,18 +122,26 @@ export default function Admin() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="badge bg-purple-400 text-slate-950 font-bold text-xs">ADMINISTRATION</span>
-              <h2 className="text-xl font-bold text-white">System Governance & Policy Management</h2>
+              <span className="badge bg-purple-400 text-slate-950 font-bold text-xs">
+                {lang === 'si' ? 'පරිපාලනය' : 'ADMINISTRATION'}
+              </span>
+              <h2 className="text-xl font-bold text-white">
+                {lang === 'si' ? 'පද්ධති පාලනය සහ ප්‍රතිපත්ති කළමනාකරණය' : 'System Governance & Policy Management'}
+              </h2>
             </div>
             <p className="text-xs text-slate-300">
-              Audited system controls, immutable versioned configuration, and human review feedback.
+              {lang === 'si'
+                ? 'විගණනය කළ පද්ධති පාලනය, අනුවාද කළ සැකසුම් සහ මානව ප්‍රතිචාර සමාලෝචනය.'
+                : 'Audited system controls, immutable versioned configuration, and human review feedback.'}
             </p>
           </div>
           {activeCfg && (
             <div className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-lg text-xs">
-              <span className="text-slate-400 block text-[11px]">Active Configuration</span>
+              <span className="text-slate-400 block text-[11px]">
+                {lang === 'si' ? 'ක්‍රියාකාරී අනුවාදය' : 'Active Configuration'}
+              </span>
               <strong className="text-purple-300 font-mono text-sm">
-                Version {activeCfg.version}
+                {lang === 'si' ? `අනුවාදය ${activeCfg.version}` : `Version ${activeCfg.version}`}
               </strong>
               <span className="text-slate-400 block text-[11px]">
                 {new Date(activeCfg.deployedAt).toLocaleString()}
@@ -144,9 +153,10 @@ export default function Admin() {
         {/* Tab Navigation */}
         <div className="flex border-t border-slate-800 pt-3 gap-2">
           {[
-            { id: 'config', label: 'Versioned Configuration' },
-            { id: 'feedback', label: 'Human Review & AI Feedback' },
-            { id: 'audit', label: 'System Audit Logs' },
+            { id: 'config', label: lang === 'si' ? 'අනුවාදිත සැකසුම්' : 'Versioned Configuration' },
+            { id: 'feedback', label: lang === 'si' ? 'මානව සහ AI ප්‍රතිචාර' : 'Human Review & AI Feedback' },
+            { id: 'audit', label: lang === 'si' ? 'පද්ධති විගණන ලඝු' : 'System Audit Logs' },
+            { id: 'reports', label: lang === 'si' ? 'වාර්තා කළමනාකරණය සහ දත්ත පිරිසිදු කිරීම' : 'Manage Reports & Clean Data' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -463,6 +473,24 @@ export default function Admin() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB 4: Reports & Evidence Clean-up */}
+      {activeTab === 'reports' && (
+        <div className="space-y-4">
+          <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-sm text-purple-950">Administrative Report Management</h3>
+              <p className="text-xs text-purple-800">
+                Inspect live citizen reports and permanently remove completed or test submissions. Deleting a report automatically cleans up associated photos from GridFS binary storage.
+              </p>
+            </div>
+            <span className="badge bg-purple-200 text-purple-900 font-mono text-xs shrink-0">
+              Admin Role Required
+            </span>
+          </div>
+          <ReportQueue title={lang === 'si' ? "සියලු ආපදා සහ උපකාර වාර්තා" : "All Incident & Hazard Reports"} user={{ role: 'admin' }} lang={lang} t={t} />
         </div>
       )}
     </div>
