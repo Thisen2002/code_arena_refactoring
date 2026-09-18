@@ -1,6 +1,6 @@
 import { buildCase } from './caseBuilder.js';
 import { runWeatherCheck, runClusterCheck } from './systemChecks.js';
-import { runVisualCheck, runRiskAndAggregatorCheck } from '../ai/gemini.js';
+import { runFullAssessment } from '../ai/gemini.js';
 
 export async function evaluateReport({
   report,
@@ -53,73 +53,67 @@ export async function evaluateReport({
         reasons: ['No photo available to inspect environmental scene.'],
         uncertainty: ['Missing visual evidence; GPS remains unverified.'],
       };
-    } else {
-      // Run optimized combined Visual Check
-      const visualResult = await runVisualCheck({
-        bytes: photoBuffer,
-        mimeType,
-        claimedWard: caseContext.mappedWard?.name,
-        claimedRoad: caseContext.mappedRoad?.name,
-        apiKey,
-        model,
-      });
 
-      // Unpack into expected structure to maintain backwards compatibility
+      // Since there's no photo, we must still run an assessment based purely on context.
+      // But the full assessment requires context anyway. We can pass empty bytes.
+    }
+
+    // Run the OPTIMIZED single API call for the entire case
+    const fullResult = await runFullAssessment({
+      report,
+      bytes: hasPhotoBytes ? photoBuffer : null,
+      mimeType,
+      mappedWard: caseContext.mappedWard,
+      mappedRoad: caseContext.mappedRoad,
+      weatherCheck,
+      clusterCheck,
+      apiKey,
+      model,
+    });
+
+    if (hasPhotoBytes) {
       imageCheck = {
         type: 'ai',
         checkName: 'image',
-        hazardType: visualResult.hazardType,
-        severity: visualResult.severity,
-        isDisasterRelated: visualResult.isDisasterRelated,
-        visualEvidence: visualResult.visualEvidence,
-        reasons: visualResult.imageReasons,
-        confidence: visualResult.confidence,
+        hazardType: fullResult.hazardType,
+        severity: fullResult.severity,
+        isDisasterRelated: fullResult.isDisasterRelated,
+        visualEvidence: fullResult.visualEvidence,
+        reasons: fullResult.imageReasons,
+        confidence: fullResult.confidence, // For schema compatibility, though it is usually 1 confidence overall
       };
 
       locationCheck = {
         type: 'ai',
         checkName: 'location',
-        sceneType: visualResult.sceneType,
-        plausibleForClaimedWard: visualResult.plausibleForClaimedWard,
-        locationEvidence: visualResult.locationEvidence,
-        sceneConsistency: visualResult.sceneConsistency,
-        reasons: visualResult.locationReasons,
-        uncertainty: visualResult.locationUncertainty,
+        sceneType: fullResult.sceneType,
+        plausibleForClaimedWard: fullResult.plausibleForClaimedWard,
+        locationEvidence: fullResult.locationEvidence,
+        sceneConsistency: fullResult.sceneConsistency,
+        reasons: fullResult.locationReasons,
+        uncertainty: fullResult.locationUncertainty,
       };
     }
-
-    // Run optimized combined Risk & Aggregator Check
-    const combinedRiskAggregator = await runRiskAndAggregatorCheck({
-      report,
-      mappedRoad: caseContext.mappedRoad,
-      mappedWard: caseContext.mappedWard,
-      weatherCheck,
-      clusterCheck,
-      imageSignal: imageCheck,
-      locationSignal: locationCheck,
-      apiKey,
-      model,
-    });
 
     riskCheck = {
       type: 'ai',
       checkName: 'risk',
-      urgency: combinedRiskAggregator.urgency,
-      lifeSafetyRisk: combinedRiskAggregator.lifeSafetyRisk,
-      risingWaterIndicators: combinedRiskAggregator.risingWaterIndicators,
-      roadHierarchyRisk: combinedRiskAggregator.roadHierarchyRisk,
-      vulnerableFactors: combinedRiskAggregator.vulnerableFactors,
-      reasons: combinedRiskAggregator.riskReasons,
+      urgency: fullResult.urgency,
+      lifeSafetyRisk: fullResult.lifeSafetyRisk,
+      risingWaterIndicators: fullResult.risingWaterIndicators,
+      roadHierarchyRisk: fullResult.roadHierarchyRisk,
+      vulnerableFactors: fullResult.vulnerableFactors,
+      reasons: fullResult.riskReasons,
     };
 
     aggregator = {
       type: 'ai_aggregator',
-      verdict: combinedRiskAggregator.verdict,
-      urgency: combinedRiskAggregator.urgency,
-      confidence: combinedRiskAggregator.confidence,
-      recommendedOutcome: combinedRiskAggregator.recommendedOutcome,
-      reasons: combinedRiskAggregator.aggregatorReasons,
-      uncertainty: combinedRiskAggregator.aggregatorUncertainty,
+      verdict: fullResult.verdict,
+      urgency: fullResult.urgency,
+      confidence: fullResult.confidence,
+      recommendedOutcome: fullResult.recommendedOutcome,
+      reasons: fullResult.aggregatorReasons,
+      uncertainty: fullResult.aggregatorUncertainty,
     };
 
     const assessmentResult = {

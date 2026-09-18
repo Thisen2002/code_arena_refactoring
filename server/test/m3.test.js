@@ -10,12 +10,7 @@ import {
 import { buildCase } from '../src/services/caseBuilder.js';
 import { runWeatherCheck, runClusterCheck } from '../src/services/systemChecks.js';
 import {
-  imageCheckSchema,
-  locationCheckSchema,
-  riskCheckSchema,
-  aggregatorSchema,
-  visualCheckOutputSchema,
-  riskAndAggregatorOutputSchema,
+  fullAssessmentOutputSchema,
 } from '../src/ai/gemini.js';
 import { evaluateReport } from '../src/services/assessmentService.js';
 import { createApp } from '../src/app.js';
@@ -94,84 +89,19 @@ test('cluster SYSTEM check evaluates spatial-temporal report density within 200m
   assert.equal(dense.corroborationStrength, 'strong');
 });
 
-test('AI check schemas enforce strict validation contracts and preserve unknown location evidence', () => {
-  // 1. Image Check Schema
-  const validImageCheck = {
-    type: 'ai',
-    checkName: 'image',
-    hazardType: 'flood',
-    severity: 'severe',
-    isDisasterRelated: true,
-    visualEvidence: ['Submerged vehicle', 'Brown floodwater above tire height'],
-    reasons: ['Visual indicators confirm substantial street flooding.'],
-    confidence: 0.85,
-  };
-  assert.ok(imageCheckSchema.safeParse(validImageCheck).success);
-  assert.ok(!imageCheckSchema.safeParse({ ...validImageCheck, confidence: 1.5 }).success);
-
-  // 2. Location Check Schema - STRICT: locationEvidence MUST be 'unknown'
-  const validLocationCheck = {
-    type: 'ai',
-    checkName: 'location',
-    sceneType: 'outdoor_road',
-    plausibleForClaimedWard: true,
-    locationEvidence: 'unknown',
-    sceneConsistency: 'consistent_with_claimed_area',
-    reasons: ['Tropical outdoor road environment consistent with Colombo urban street.'],
-    uncertainty: ['Photo appearance cannot calibrate physical GPS coordinates; location evidence remains unverified.'],
-  };
-  assert.ok(locationCheckSchema.safeParse(validLocationCheck).success);
-  // Rejects any claim of verified GPS from photos
-  assert.ok(!locationCheckSchema.safeParse({ ...validLocationCheck, locationEvidence: 'verified' }).success);
-  assert.ok(!locationCheckSchema.safeParse({ ...validLocationCheck, locationEvidence: 'photo_gps' }).success);
-
-  // 3. Risk Check Schema
-  const validRiskCheck = {
-    type: 'ai',
-    checkName: 'risk',
-    urgency: 'high',
-    lifeSafetyRisk: 'severe',
-    risingWaterIndicators: true,
-    roadHierarchyRisk: 'arterial_critical',
-    vulnerableFactors: ['Arterial hospital access corridor', 'Rising river water'],
-    reasons: ['Major road inundation threatens evacuation corridor.'],
-  };
-  assert.ok(riskCheckSchema.safeParse(validRiskCheck).success);
-
-  // 4. Aggregator Schema
-  const validAggregator = {
-    type: 'ai_aggregator',
-    verdict: 'confirmed',
-    urgency: 'high',
-    confidence: 0.88,
-    recommendedOutcome: 'area_alert',
-    reasons: ['Image confirms severe floodwater', 'Weather station confirms 48mm/h rainfall', 'Cluster shows 3 nearby reports'],
-    uncertainty: ['Physical GPS coordinates unverified by EXIF'],
-  };
-  assert.ok(aggregatorSchema.safeParse(validAggregator).success);
-  assert.ok(!aggregatorSchema.safeParse({ ...validAggregator, verdict: 'invalid_verdict' }).success);
-});
-
-test('Optimized combined schemas enforce strict validation contracts', () => {
-  const validVisualCheck = {
+test('fullAssessmentOutputSchema enforces strict validation contracts and preserves unknown location evidence', () => {
+  const validFullAssessment = {
     hazardType: 'flood',
     severity: 'severe',
     isDisasterRelated: true,
     visualEvidence: ['Submerged vehicle'],
     imageReasons: ['Water level is high'],
-    confidence: 0.85,
     sceneType: 'outdoor_road',
     plausibleForClaimedWard: true,
     locationEvidence: 'unknown',
     sceneConsistency: 'consistent_with_claimed_area',
     locationReasons: ['Looks like a road'],
     locationUncertainty: ['No GPS'],
-  };
-  assert.ok(visualCheckOutputSchema.safeParse(validVisualCheck).success);
-  // Rejects verified location evidence based on literal 'unknown' rule
-  assert.ok(!visualCheckOutputSchema.safeParse({ ...validVisualCheck, locationEvidence: 'verified' }).success);
-
-  const validRiskAggregatorCheck = {
     urgency: 'high',
     lifeSafetyRisk: 'severe',
     risingWaterIndicators: true,
@@ -184,8 +114,14 @@ test('Optimized combined schemas enforce strict validation contracts', () => {
     aggregatorReasons: ['Visuals confirm'],
     aggregatorUncertainty: ['No GPS'],
   };
-  assert.ok(riskAndAggregatorOutputSchema.safeParse(validRiskAggregatorCheck).success);
-  assert.ok(!riskAndAggregatorOutputSchema.safeParse({ ...validRiskAggregatorCheck, verdict: 'invalid' }).success);
+  
+  assert.ok(fullAssessmentOutputSchema.safeParse(validFullAssessment).success);
+  
+  // Rejects verified location evidence based on literal 'unknown' rule
+  assert.ok(!fullAssessmentOutputSchema.safeParse({ ...validFullAssessment, locationEvidence: 'verified' }).success);
+  
+  // Rejects invalid verdict
+  assert.ok(!fullAssessmentOutputSchema.safeParse({ ...validFullAssessment, verdict: 'invalid' }).success);
 });
 
 test('case builder joins report with ward, road, nearby reports query and weather snapshot', async () => {
